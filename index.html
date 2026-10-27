@@ -1,0 +1,970 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>경제나무 — 처음부터 배우는 자산 증식</title>
+<meta name="description" content="경제 지식이 없어도 시작할 수 있는 5층 용어 체계, 12주 로드맵, 복리 계산기, 오답 퀴즈">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<script>
+/* =====================================================================
+   DATA — 사이트의 모든 콘텐츠는 여기에 있다.
+   - 용어를 추가하려면 TERMS 배열에 객체를 하나 넣으면 된다.
+   - 본문(body)·퀴즈(q/explain) 문자열 안에서 쓸 수 있는 표기:
+       [[용어|한 줄 풀이]]  → 처음 나오는 용어를 그 자리에서 풀어쓴다
+       @@termId@@          → 다른 용어 페이지로 가는 링크
+       {{calc}}            → 복리 계산기 위젯 삽입
+   - ready: false 인 용어는 "준비 중"으로 표시되고, 다음 작업에서 채운다.
+   ===================================================================== */
+const DATA = {
+  LAYERS: [
+    { n: 1, name: '원리', desc: '돈이 시간에 따라 어떻게 불어나고, 또 어떻게 가치를 잃는지',
+      later: ['복리 공식을 수학적으로 유도하는 법', '연속복리·로그 같은 고급 계산'],
+      onIncome: ['생활비 3~6개월치 비상금을 먼저 따로 떼어두기', '남는 돈은 소액이라도 "가능한 한 일찍" 굴리기 시작 — 복리는 기간이 무기'] },
+    { n: 2, name: '상품', desc: '돈을 실제로 맡기거나 투자하는 그릇들',
+      later: ['개별 주식 종목 분석, 차트(주가 그래프) 읽는 법', '채권을 직접 사고파는 방법'],
+      onIncome: ['증권 계좌 만들기', '시장 전체를 담은 ETF를 매달 같은 금액으로 사는 "적립식" 시작'] },
+    { n: 3, name: '세금·제도', desc: '같은 수익이라도 손에 남는 돈을 바꾸는 규칙들',
+      later: ['금융소득종합과세 — 이자·배당이 1년에 2,000만원을 넘을 때의 이야기'],
+      onIncome: ['ISA 계좌 개설 — 만 19세 이상이면 소득이 없어도 만들 수 있어, 가입 기간(보통 3년)을 미리 채워두는 의미가 있음', '연금저축·IRP 세액공제 챙기기 — 세액공제는 "낸 세금을 돌려받는" 것이라 소득이 생겨야 효과가 있음'],
+      note: '세법·제도는 해마다 바뀔 수 있어요. 가입 전에는 금융회사나 국세청 안내로 최신 기준을 꼭 확인하세요.' },
+    { n: 4, name: '위험관리', desc: '잃지 않는 것도 실력 — 흔들림을 다루는 방법',
+      later: ['환헤지 비용을 직접 계산하는 법', '상관계수 같은 통계 용어'],
+      onIncome: ['주식·채권·현금 비율(자산배분)을 정하고 적어두기', '1년에 1~2번 정해진 날에 비율 맞추기(리밸런싱)'] },
+    { n: 5, name: '파생', desc: '다른 자산의 가격에 "따라 움직이는" 계약들 — 미리보기만',
+      later: ['옵션을 직접 사고파는 것 — 원금보다 큰 손실이 날 수 있어 초보 단계에서는 하지 않음'],
+      onIncome: ['커버드콜 ETF를 사기 전, "오를 때 이익을 일부 포기하는 대신 매달 분배금을 받는 구조"라는 걸 설명할 수 있는지 스스로 점검'] }
+  ],
+
+  TERMS: [
+    /* ---------------- 1층 원리 ---------------- */
+    {
+      id: 'simple', layer: 1, ready: true, name: '단리', en: 'Simple Interest',
+      oneLine: '처음 넣은 돈에만 이자가 붙는 방식',
+      prereq: [],
+      quiz: [
+        { id: 'simple-1', q: '100만원을 연 5% 단리로 3년 맡기면, 3년 동안 받는 이자는 모두 얼마일까요?',
+          choices: ['5만원', '15만원', '15만 7,625원', '30만원'], answer: 1,
+          explain: '단리는 매년 100만원의 5%인 <b>5만원</b>만 붙어요. 5만원 × 3년 = <b>15만원</b>. (15만 7,625원은 다음에 배울 복리일 때의 금액이에요.)' },
+        { id: 'simple-2', q: '단리에서 매년 받는 이자 금액은 시간이 지나면 어떻게 될까요?',
+          choices: ['매년 똑같다', '매년 늘어난다', '매년 줄어든다', '해마다 무작위로 바뀐다'], answer: 0,
+          explain: '이자를 계산하는 기준이 늘 처음 넣은 돈이라서, 매년 <b>같은 금액</b>이 붙어요. 그래서 그래프로 그리면 곧은 직선이 됩니다.' }
+      ],
+      body: `
+        <p>[[원금|처음 넣은 돈]]에만 [[이자|돈을 맡긴 대가로 받는 돈]]가 붙는 방식이 <b>단리</b>예요.</p>
+        <div class="box"><b>공식</b><br>만기 금액 = 원금 × (1 + 수익률 × 기간)</div>
+        <h4>예시</h4>
+        <table class="mini"><thead><tr><th>연차</th><th>이번 해 이자</th><th>누적 금액</th></tr></thead>
+        <tbody><tr><td>1년</td><td>5만원</td><td>105만원</td></tr><tr><td>2년</td><td>5만원</td><td>110만원</td></tr><tr><td>3년</td><td>5만원</td><td>115만원</td></tr></tbody></table>
+        <p class="cap">100만원, 연 5% 단리. 이자는 매년 똑같이 5만원.</p>
+        <h4>어디서 만나나</h4>
+        <p>은행 [[정기예금|목돈을 한 번에 맡기고 정해진 기간 뒤 찾는 상품]] 중 상당수가 단리예요. 상품 설명에 "단리" 또는 "복리"가 적혀 있습니다.</p>
+        <p class="tip">핵심: 단리는 <b>직선</b>으로 자란다. 다음 용어 @@compound@@와 비교하면 차이가 확 보여요.</p>`,
+      later: ['단리 이자의 세금 계산 — 3층에서 배워요'],
+      onIncome: ['예적금 가입 전 상품 설명서에서 "단리/복리"와 "세전/세후" 표시 확인하기']
+    },
+    {
+      id: 'compound', layer: 1, ready: true, name: '복리', en: 'Compound Interest',
+      oneLine: '이자에도 다시 이자가 붙는 방식',
+      prereq: ['simple'],
+      quiz: [
+        { id: 'compound-1', q: '100만원을 연 10% 복리로 2년 굴리면 얼마가 될까요?',
+          choices: ['110만원', '120만원', '121만원', '200만원'], answer: 2,
+          explain: '1년 뒤 100만 → 110만원. 2년째에는 <b>110만원</b>의 10%인 11만원이 붙어 <b>121만원</b>. 단리였다면 120만원이에요. 이 1만원 차이가 "이자의 이자"입니다.' },
+        { id: 'compound-2', q: '수익률이 같다면, 기간이 길어질수록 단리와 복리의 차이는?',
+          choices: ['처음과 똑같다', '점점 커진다', '점점 작아진다', '어느 순간 단리가 앞선다'], answer: 1,
+          explain: '복리는 불어난 금액을 기준으로 다시 이자가 붙기 때문에, 시간이 갈수록 차이가 <b>눈덩이처럼</b> 커져요. 아래 계산기에서 기간을 늘려보세요.' },
+        { id: 'compound-3', q: '복리 효과를 가장 크게 키우는 요소는 무엇일까요?',
+          choices: ['은행의 이름', '돈을 굴리는 기간', '잔고를 자주 확인하기', '이자를 매번 찾아 쓰기'], answer: 1,
+          explain: '원금과 수익률도 중요하지만, 기간은 [[거듭제곱|같은 수를 여러 번 곱하는 것]]으로 작용해서 영향이 가장 커요. 반대로 이자를 찾아 쓰면 복리가 끊겨 단리처럼 돼요.' }
+      ],
+      body: `
+        <p>복리는 [[원금|처음 넣은 돈]]뿐 아니라 <b>이미 붙은 이자에도</b> 다시 이자가 붙는 방식이에요. "이자의 이자"라고 기억하세요.</p>
+        <div class="box"><b>공식</b><br>만기 금액 = 원금 × (1 + 수익률)<sup>기간</sup></div>
+        <p class="cap">위첨자 "기간"은 (1+수익률)을 기간만큼 반복해서 곱한다는 뜻이에요.</p>
+        <h4>단리 vs 복리, 직접 비교</h4>
+        {{calc}}
+        <h4>복리를 끊는 습관</h4>
+        <ul>
+          <li>이자나 [[배당|회사가 이익을 주주에게 나눠주는 돈]]을 받자마자 써버리기 → 다시 굴릴 돈이 사라져 단리처럼 됨</li>
+          <li>중간에 자주 깨기 → 기간이 짧아짐</li>
+        </ul>
+        <p class="tip">핵심: 복리는 <b>곡선</b>으로 자란다. 처음엔 단리와 비슷하지만 시간이 길수록 격차가 벌어진다.</p>`,
+      later: ['월복리·일복리의 미세한 차이 — 연복리만 이해해도 충분해요'],
+      onIncome: ['금액보다 "시작 시점"을 앞당기기 — 적은 돈이라도 기간이 길면 이김', '받은 이자·배당은 꺼내 쓰지 말고 다시 투자(재투자)']
+    },
+    {
+      id: 'rule72', layer: 1, ready: true, name: '72의 법칙', en: 'Rule of 72',
+      oneLine: '72 ÷ 연 수익률 = 돈이 2배가 되는 데 걸리는 대략의 햇수',
+      prereq: ['compound'],
+      quiz: [
+        { id: 'rule72-1', q: '연 6% 복리로 굴리면 돈이 2배가 되는 데 대략 몇 년이 걸릴까요?',
+          choices: ['약 6년', '약 12년', '약 17년', '약 72년'], answer: 1,
+          explain: '72 ÷ 6 = <b>12년</b>. 실제 정확한 값은 약 11.9년이라 거의 맞아요.' },
+        { id: 'rule72-2', q: '9년 만에 돈을 2배로 만들려면 연 몇 % 수익률이 필요할까요?',
+          choices: ['약 4%', '약 8%', '약 9%', '약 18%'], answer: 1,
+          explain: '거꾸로도 쓸 수 있어요. 72 ÷ 9 = <b>8%</b>.' },
+        { id: 'rule72-3', q: '72의 법칙에 대한 설명으로 맞는 것은?',
+          choices: ['단리에서만 맞는다', '정확한 공식이다', '복리에서 쓰는 빠른 어림셈이다', '수익률이 50%일 때 가장 정확하다'], answer: 2,
+          explain: '복리를 전제로 한 <b>어림셈</b>이에요. 연 수익률 4~12% 근처에서 특히 잘 맞고, 너무 높은 수익률에서는 오차가 커져요.' }
+      ],
+      body: `
+        <p>복잡한 계산 없이 <b>"내 돈이 언제 2배가 될까?"</b>를 머릿속으로 바로 답하는 방법이에요.</p>
+        <div class="box"><b>공식</b><br>2배가 되는 햇수 ≈ 72 ÷ 연 수익률(%)</div>
+        <table class="mini"><thead><tr><th>연 수익률</th><th>2배까지</th><th>4배까지</th></tr></thead>
+        <tbody><tr><td>2%</td><td>약 36년</td><td>약 72년</td></tr><tr><td>4%</td><td>약 18년</td><td>약 36년</td></tr><tr><td>6%</td><td>약 12년</td><td>약 24년</td></tr><tr><td>8%</td><td>약 9년</td><td>약 18년</td></tr><tr><td>12%</td><td>약 6년</td><td>약 12년</td></tr></tbody></table>
+        <p class="cap">2배가 된 돈이 같은 기간을 한 번 더 지나면 4배가 돼요.</p>
+        <h4>무서운 방향으로도 쓸 수 있다</h4>
+        <p>물가가 연 3%씩 오르면 72 ÷ 3 = <b>24년</b> 뒤 물건값이 2배 — 바꿔 말해 현금의 가치가 절반이 돼요. 이게 다음 용어 @@inflation@@이에요.</p>`,
+      later: ['69의 법칙·70의 법칙 같은 변형 — 72 하나면 충분'],
+      onIncome: ['상품을 볼 때 "이 수익률이면 몇 년 뒤 2배?"를 72로 바로 계산하는 습관']
+    },
+    {
+      id: 'inflation', layer: 1, ready: true, name: '인플레이션', en: 'Inflation',
+      oneLine: '물건값이 전반적으로 오르는 것 = 같은 돈으로 살 수 있는 양이 줄어드는 것',
+      prereq: [],
+      quiz: [
+        { id: 'inflation-1', q: '물가가 매년 3%씩 오른다면, 현금 1,000만원으로 10년 뒤 살 수 있는 양은 지금 기준으로 얼마어치일까요?',
+          choices: ['1,000만원어치 그대로', '약 744만원어치', '약 1,344만원어치', '약 300만원어치'], answer: 1,
+          explain: '통장 숫자는 1,000만원 그대로지만, 물건값이 1.03을 10번 곱한 만큼(약 1.34배) 올라서 실제로 살 수 있는 양은 1,000 ÷ 1.344 ≈ <b>744만원어치</b>로 줄어요.' },
+        { id: 'inflation-2', q: '인플레이션이 있을 때 현금을 금고에만 넣어두면?',
+          choices: ['금액도 가치도 그대로다', '금액은 그대로, 살 수 있는 양은 줄어든다', '금액이 줄어든다', '살 수 있는 양이 늘어난다'], answer: 1,
+          explain: '숫자는 안 변하지만 [[구매력|그 돈으로 실제 살 수 있는 물건의 양]]이 줄어요. "가만히 있으면 본전"이 아니라 "가만히 있으면 조금씩 손해"인 이유예요.' },
+        { id: 'inflation-3', q: '물가가 매년 3%씩 오르면, 물건값이 2배가 되기까지 대략 몇 년?',
+          choices: ['약 3년', '약 12년', '약 24년', '약 50년'], answer: 2,
+          explain: '@@rule72@@을 그대로 쓰면 돼요. 72 ÷ 3 = <b>24년</b>.' }
+      ],
+      body: `
+        <p>인플레이션은 물건값이 <b>전반적으로</b> 오르는 현상이에요. 같은 말을 돈의 입장에서 하면 "돈의 가치가 떨어진다"가 돼요.</p>
+        <h4>어떻게 재나</h4>
+        <p>나라에서 [[소비자물가지수|사람들이 자주 사는 물건·서비스 가격을 모아 평균 낸 숫자. 통계청이 매달 발표]]를 발표해요. 이 숫자가 1년 전보다 몇 % 올랐는지가 <b>물가상승률</b>이에요.</p>
+        <div class="box"><b>현금의 미래 구매력</b><br>지금 기준 가치 = 금액 ÷ (1 + 물가상승률)<sup>기간</sup></div>
+        <table class="mini"><thead><tr><th>기간</th><th>물가 연 2%</th><th>물가 연 3%</th></tr></thead>
+        <tbody><tr><td>10년</td><td>약 820만원어치</td><td>약 744만원어치</td></tr><tr><td>20년</td><td>약 673만원어치</td><td>약 554만원어치</td></tr><tr><td>30년</td><td>약 552만원어치</td><td>약 412만원어치</td></tr></tbody></table>
+        <p class="cap">현금 1,000만원을 그대로 들고 있을 때(샘플 계산).</p>
+        <p class="tip">핵심: 자산 증식의 첫 목표는 "물가보다 빨리 불리기". 그 기준이 다음 용어 @@real@@이에요.</p>`,
+      later: ['근원물가·기대인플레이션 같은 세부 지표', '중앙은행이 금리로 물가를 조절하는 원리 — 2층 채권에서 다시 만나요'],
+      onIncome: ['큰돈을 이자 거의 없는 입출금 통장에 오래 두지 않기 (비상금은 예외)']
+    },
+    {
+      id: 'real', layer: 1, ready: true, name: '실질수익률', en: 'Real Return',
+      oneLine: '물가 상승분을 빼고 실제로 늘어난 구매력의 비율',
+      prereq: ['inflation'],
+      quiz: [
+        { id: 'real-1', q: '예금 이자가 연 3.5%이고 물가가 연 3% 올랐다면, 실질수익률은 대략?',
+          choices: ['약 6.5%', '약 3.5%', '약 0.5%', '약 -3%'], answer: 2,
+          explain: '실질수익률 ≈ 명목수익률 − 물가상승률 = 3.5 − 3 = <b>약 0.5%</b>. 통장 숫자는 3.5% 늘었지만, 살 수 있는 양은 0.5%만 늘었어요.' },
+        { id: 'real-2', q: '수익률 2%, 물가상승률 3%일 때 내 돈의 실제 가치는?',
+          choices: ['늘어난다', '그대로다', '줄어든다', '알 수 없다'], answer: 2,
+          explain: '2 − 3 = <b>-1%</b>. 숫자는 늘었는데 구매력은 줄어든, "이자를 받고도 손해 본" 상태예요.' },
+        { id: 'real-3', q: '예금 이자 연 4%에서 [[이자소득세|이자에 붙는 세금. 15.4%를 떼고 줌]]를 떼면 실제 받는 이자율은 약 3.4%. 물가가 3%라면 세금까지 뺀 실질수익률은?',
+          choices: ['약 4%', '약 1%', '약 0.4%', '약 -1%'], answer: 2,
+          explain: '4% × (1 − 0.154) ≈ 3.38%, 여기서 물가 3%를 빼면 <b>약 0.4%</b>. 세금과 물가를 모두 빼고 남는 게 진짜 내 몫이에요. 세금은 3층에서 자세히 다뤄요.' }
+      ],
+      body: `
+        <p>통장에 찍히는 수익률을 [[명목수익률|물가를 고려하지 않은 겉으로 보이는 수익률]]이라고 해요. 여기서 물가 상승분을 뺀 것이 <b>실질수익률</b>이에요.</p>
+        <div class="box"><b>어림셈</b><br>실질수익률 ≈ 명목수익률 − 물가상승률<br><br><b>정확한 식</b><br>(1 + 명목) ÷ (1 + 물가) − 1</div>
+        <p class="cap">수익률이 몇 % 수준일 때는 어림셈과 정확한 식의 차이가 아주 작아요.</p>
+        <h4>세 단계로 생각하기</h4>
+        <ol>
+          <li><b>명목</b>: 상품이 약속하는 수익률 (예: 4%)</li>
+          <li><b>세후</b>: 세금을 뗀 뒤 (예: 약 3.4%)</li>
+          <li><b>세후 실질</b>: 물가까지 뺀 뒤 (예: 물가 3%면 약 0.4%)</li>
+        </ol>
+        <p>계산기에서 "물가 반영"을 켜면 복리로 불린 돈이 <b>지금 돈 기준으로</b> 얼마인지 함께 보여줘요.</p>
+        {{calc}}
+        <p class="tip">핵심: 자산 증식의 성적표는 명목이 아니라 실질수익률로 본다.</p>`,
+      later: ['물가연동채권 같은 상품 — 2층 이후'],
+      onIncome: ['투자 목표를 "연 몇 %"가 아니라 "물가 + 몇 %"로 세우기']
+    },
+
+    /* ---------------- 2층 상품 (다음 작업에서 채움) ---------------- */
+    { id: 'deposit', layer: 2, ready: false, name: '예적금', en: 'Deposit & Savings', oneLine: '은행에 돈을 맡기고 정해진 이자를 받는 상품', prereq: ['simple', 'compound', 'real'] },
+    { id: 'bond', layer: 2, ready: false, name: '채권', en: 'Bond', oneLine: '나라나 회사에 돈을 빌려주고 받는 차용증', prereq: ['simple', 'inflation'] },
+    { id: 'fund', layer: 2, ready: false, name: '펀드', en: 'Fund', oneLine: '여러 사람의 돈을 모아 전문가가 대신 굴려주는 상품', prereq: ['compound', 'real'] },
+    { id: 'etf', layer: 2, ready: false, name: 'ETF', en: 'Exchange Traded Fund', oneLine: '주식처럼 쉽게 사고팔 수 있게 만든 펀드', prereq: ['fund'] },
+    { id: 'stock', layer: 2, ready: false, name: '주식', en: 'Stock', oneLine: '회사의 주인 자격을 잘게 쪼갠 조각', prereq: ['compound', 'rule72'] },
+
+    /* ---------------- 3층 세금·제도 ---------------- */
+    { id: 'divtax', layer: 3, ready: false, name: '배당소득세', en: 'Dividend Tax', oneLine: '배당(회사가 나눠주는 이익)과 펀드 수익에 붙는 세금', prereq: ['stock', 'fund', 'real'] },
+    { id: 'comptax', layer: 3, ready: false, name: '금융소득종합과세', en: 'Comprehensive Financial Income Tax', oneLine: '이자·배당이 1년에 일정 금액을 넘으면 다른 소득과 합쳐 세금을 매기는 제도', prereq: ['divtax', 'deposit'] },
+    { id: 'isa', layer: 3, ready: false, name: 'ISA', en: 'Individual Savings Account', oneLine: '한 계좌 안에서 여러 상품을 굴리고 세금 혜택을 받는 절세 계좌', prereq: ['divtax', 'etf', 'deposit'] },
+    { id: 'pension', layer: 3, ready: false, name: '연금저축', en: 'Pension Savings', oneLine: '노후를 위해 모으면 세금을 일부 돌려주는 계좌', prereq: ['compound', 'fund', 'divtax'] },
+    { id: 'irp', layer: 3, ready: false, name: 'IRP', en: 'Individual Retirement Pension', oneLine: '퇴직금을 받거나 노후 자금을 모으는 개인형 퇴직연금 계좌', prereq: ['pension'] },
+
+    /* ---------------- 4층 위험관리 ---------------- */
+    { id: 'diversify', layer: 4, ready: false, name: '분산', en: 'Diversification', oneLine: '한 바구니에 달걀을 다 담지 않는 것', prereq: ['stock', 'bond', 'etf'] },
+    { id: 'volatility', layer: 4, ready: false, name: '변동성', en: 'Volatility', oneLine: '가격이 위아래로 출렁이는 정도', prereq: ['stock', 'real'] },
+    { id: 'rebalance', layer: 4, ready: false, name: '리밸런싱', en: 'Rebalancing', oneLine: '틀어진 자산 비율을 정해둔 비율로 다시 맞추는 것', prereq: ['diversify', 'volatility'] },
+    { id: 'hedge', layer: 4, ready: false, name: '환헤지', en: 'Currency Hedge', oneLine: '해외 투자에서 환율(원화와 외국 돈의 교환 비율) 변동을 막아두는 것', prereq: ['etf', 'volatility'] },
+
+    /* ---------------- 5층 파생 (미리보기 제공) ---------------- */
+    { id: 'option', layer: 5, ready: false, name: '옵션', en: 'Option', oneLine: '정해진 가격에 사거나 팔 수 있는 "권리"를 사고파는 계약', prereq: ['stock', 'volatility'],
+      preview: '옵션은 "나중에 이 가격에 살(또는 팔) 수 있는 권리"예요. 아파트 분양권을 떠올리면 쉬워요. 분양권을 산 사람은 정해진 분양가에 집을 살 권리가 있고, 집값이 오르면 그 권리 자체의 값이 올라요. 반대로 집값이 내리면 권리를 포기하면 되고, 잃는 건 권리를 산 값뿐이에요. 다만 권리를 <b>파는</b> 쪽은 상대가 권리를 쓸 때 반드시 응해야 해서 손실이 클 수 있어요.' },
+    { id: 'callput', layer: 5, ready: false, name: '콜·풋', en: 'Call & Put', oneLine: '콜 = 살 수 있는 권리, 풋 = 팔 수 있는 권리', prereq: ['option'],
+      preview: '옵션은 두 종류예요. <b>콜</b>은 "정해진 가격에 살 수 있는 권리"라서 가격이 오를 것 같을 때 유리하고, <b>풋</b>은 "정해진 가격에 팔 수 있는 권리"라서 가격이 내릴 것 같을 때 유리해요. 풋은 보험처럼 쓰이기도 해요 — 내가 가진 주식이 폭락해도 정해진 가격에 팔 수 있으니까요.' },
+    { id: 'coveredcall', layer: 5, ready: false, name: '커버드콜', en: 'Covered Call', oneLine: '주식을 가진 채로 그 주식의 콜을 팔아 매달 수입을 얻는 전략', prereq: ['callput', 'etf', 'divtax'],
+      preview: '주식을 들고 있으면서, 그 주식을 "정해진 가격에 사갈 수 있는 권리(콜)"를 남에게 팔아 그 대가를 매달 받는 전략이에요. 시장이 잠잠하거나 조금 내릴 때는 이 대가 덕분에 유리하지만, 크게 오를 때는 정해진 가격 위의 이익을 상대에게 넘겨야 해요. 요즘 "월배당 ETF"로 많이 팔리는데, 높은 분배금 뒤에 <b>상승을 포기하는 대가</b>가 숨어 있다는 걸 기억하세요.' }
+  ],
+
+  ROADMAP: [
+    { week: 1, layer: 1, title: '돈이 자라는 두 가지 방식', core: [['단리 — 원금에만 이자', 'simple'], ['복리 — 이자에도 이자', 'compound'], ['기간이 길수록 둘의 격차가 벌어진다', 'compound']],
+      doit: '복리 계산기에 원금 1,000만원·연 7%를 넣고 기간을 10년 → 20년 → 30년으로 바꿔보며 단리와의 차이를 메모하기' },
+    { week: 2, layer: 1, title: '시간과 물가', core: [['72의 법칙 — 2배까지 걸리는 햇수', 'rule72'], ['인플레이션 — 돈의 구매력이 줄어드는 것', 'inflation'], ['실질수익률 — 물가를 뺀 진짜 수익', 'real']],
+      doit: '10년 전 짜장면·버스요금 가격을 검색해 지금과 비교하고, 연평균 몇 % 올랐는지 72의 법칙으로 거꾸로 추정해보기' },
+    { week: 3, layer: 2, title: '가장 안전한 그릇, 예적금', core: [['예금(목돈) vs 적금(매달 납입)', 'deposit'], ['예금자보호 — 금융회사당 1억원까지 보호', 'deposit'], ['세후·실질 수익률로 비교하기', 'real']],
+      doit: '금융감독원 "금융상품한눈에"에서 예금 금리 상위 3곳을 찾아 세후 실질수익률을 계산해보기 (가입은 하지 않아도 됨)' },
+    { week: 4, layer: 2, title: '돈을 빌려주는 투자, 채권', core: [['채권 = 이자를 약속받는 차용증', 'bond'], ['금리가 오르면 기존 채권 가격은 내린다', 'bond'], ['국채(나라) vs 회사채(기업)', 'bond']],
+      doit: '뉴스에서 "국고채 금리" 기사 하나를 찾아 금리가 올랐는지 내렸는지, 채권 가격엔 어떤 영향인지 한 줄로 적기' },
+    { week: 5, layer: 2, title: '모아서 굴리기, 펀드와 ETF', core: [['펀드 — 대신 굴려주는 상품', 'fund'], ['ETF — 주식처럼 사고파는 펀드', 'etf'], ['보수(수수료)가 복리를 갉아먹는다', 'compound']],
+      doit: '복리 계산기로 연 7% vs 연 6%(보수 1% 차이)를 30년 비교해 차액 확인하기' },
+    { week: 6, layer: 2, title: '회사의 주인이 되는 법, 주식', core: [['주식 = 회사 소유권의 조각', 'stock'], ['수익은 가격 상승 + 배당 두 갈래', 'stock'], ['개별 주식 vs 시장 전체 ETF', 'etf']],
+      doit: '증권사 모의투자(가상 돈)로 시장 전체 ETF 1개와 관심 기업 1개를 사서 4주간 기록하기' },
+    { week: 7, layer: 3, title: '세금 기초', core: [['배당소득세 — 수익에서 15.4%', 'divtax'], ['금융소득종합과세 — 연 2,000만원 기준', 'comptax'], ['과세 vs 비과세 vs 분리과세', 'divtax']],
+      doit: '1주차 계산 결과에 세금 15.4%를 적용하면 30년 뒤 금액이 얼마나 줄어드는지 계산하기' },
+    { week: 8, layer: 3, title: '절세 계좌 3총사', core: [['ISA — 비과세 한도가 있는 만능 계좌', 'isa'], ['연금저축 — 세액공제 + 노후 대비', 'pension'], ['IRP — 퇴직연금 계좌', 'irp']],
+      doit: '세 계좌의 가입 조건·혜택·중도 인출 제약을 표 하나로 직접 정리하기' },
+    { week: 9, layer: 4, title: '흔들려도 버티는 힘', core: [['분산 — 서로 다르게 움직이는 자산 섞기', 'diversify'], ['변동성 — 출렁임의 크기', 'volatility'], ['손실 회복의 비대칭 (-50%는 +100%가 필요)', 'volatility']],
+      doit: '주식 100% / 주식 60·채권 40 두 가지 비율로 "최악의 해에 몇 % 떨어질 수 있나"를 샘플 숫자로 비교하기' },
+    { week: 10, layer: 4, title: '비율 지키기와 환율', core: [['리밸런싱 — 정해진 비율로 되돌리기', 'rebalance'], ['환율이 해외 투자 수익에 끼어든다', 'hedge'], ['환헤지 vs 환노출', 'hedge']],
+      doit: '모의 포트폴리오의 비율이 얼마나 틀어졌는지 계산하고, 리밸런싱하려면 무엇을 얼마나 사고팔지 적기' },
+    { week: 11, layer: 5, title: '파생 미리보기', core: [['옵션 — 권리를 사고파는 계약', 'option'], ['콜(살 권리) · 풋(팔 권리)', 'callput'], ['커버드콜 — 높은 분배금의 대가', 'coveredcall']],
+      doit: '"월배당 커버드콜 ETF" 광고 하나를 찾아, 광고에 안 쓰인 단점을 한 문장으로 적기' },
+    { week: 12, layer: 1, title: '나만의 자산 증식 계획', core: [['비상금 → 절세 계좌 → 분산 투자 순서', 'isa'], ['실질수익률 목표 세우기', 'real'], ['"수입이 생기면 할 일" 정리', 'compound']],
+      doit: '모든 층의 "수입이 생기면 바로 할 것"을 모아 나만의 체크리스트를 만들고, 첫 월급 날 할 일 3개 고르기' }
+  ],
+
+  CALC_DEFAULT: { principal: 1000, rate: 7, years: 30, freq: 1, inflation: 2.5, showReal: false }
+};
+</script>
+<style>
+:root {
+  color-scheme: light;
+  --bg: #f6f5f1;
+  --surface: #fcfcfb;
+  --surface-2: #efede7;
+  --border: #dedbd2;
+  --text: #1b1a18;
+  --text-2: #52514e;
+  --muted: #7a7872;
+  --accent: #2a6e4f;
+  --accent-soft: #e2efe7;
+  --good: #1f7a3a;
+  --good-soft: #e3f2e6;
+  --bad: #b3261e;
+  --bad-soft: #f9e4e2;
+  --lock: #a8a59c;
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --series-3: #1baf7a;
+  --grid: #e8e6df;
+  --shadow: 0 1px 2px rgba(0,0,0,.05), 0 2px 8px rgba(0,0,0,.04);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #121211; --surface: #1a1a19; --surface-2: #242422; --border: #353431;
+    --text: #f0efec; --text-2: #c3c2b7; --muted: #8f8d85;
+    --accent: #6cc59a; --accent-soft: #1f3329;
+    --good: #6cc58a; --good-soft: #1d3324; --bad: #ef8a83; --bad-soft: #3a201e; --lock: #5f5d57;
+    --series-1: #3987e5; --series-2: #d95926; --series-3: #199e70; --grid: #2c2c2a;
+    --shadow: none;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #121211; --surface: #1a1a19; --surface-2: #242422; --border: #353431;
+  --text: #f0efec; --text-2: #c3c2b7; --muted: #8f8d85;
+  --accent: #6cc59a; --accent-soft: #1f3329;
+  --good: #6cc58a; --good-soft: #1d3324; --bad: #ef8a83; --bad-soft: #3a201e; --lock: #5f5d57;
+  --series-1: #3987e5; --series-2: #d95926; --series-3: #199e70; --grid: #2c2c2a;
+  --shadow: none;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--bg); color: var(--text);
+  font-family: "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  font-size: 16px; line-height: 1.7; word-break: keep-all; overflow-wrap: anywhere;
+}
+a { color: var(--accent); }
+button { font: inherit; color: inherit; cursor: pointer; }
+h1, h2, h3, h4 { line-height: 1.35; margin: 0 0 .5em; }
+h1 { font-size: 1.6rem; } h2 { font-size: 1.3rem; } h3 { font-size: 1.1rem; } h4 { font-size: 1rem; margin-top: 1.4em; }
+p { margin: 0 0 .9em; }
+
+/* layout */
+.app { display: grid; grid-template-columns: 272px 1fr; min-height: 100vh; }
+.side {
+  position: sticky; top: 0; height: 100vh; overflow-y: auto;
+  background: var(--surface); border-right: 1px solid var(--border); padding: 20px 14px;
+}
+.main { padding: 32px clamp(16px, 4vw, 48px) 80px; max-width: 880px; width: 100%; }
+.topbar { display: none; }
+.brand { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 1.1rem; text-decoration: none; color: var(--text); padding: 0 8px 12px; }
+.brand svg { flex: none; }
+.nav-sec { font-size: .75rem; color: var(--muted); letter-spacing: .04em; margin: 18px 8px 6px; }
+.nav a.item {
+  display: block; padding: 8px 10px; border-radius: 8px; text-decoration: none; color: var(--text);
+}
+.nav a.item:hover { background: var(--surface-2); }
+.nav a.item.on { background: var(--accent-soft); color: var(--accent); font-weight: 500; }
+.nav .row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.nav .lv { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 6px; background: var(--surface-2); font-size: .75rem; font-weight: 700; margin-right: 8px; flex: none; }
+.nav .on .lv { background: var(--accent); color: var(--surface); }
+.nav .cnt { font-size: .75rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.bar { height: 4px; border-radius: 4px; background: var(--surface-2); margin-top: 6px; overflow: hidden; }
+.bar > i { display: block; height: 100%; background: var(--accent); border-radius: 4px; }
+.sub { margin: 2px 0 6px 30px; }
+.sub a { display: flex; gap: 6px; font-size: .88rem; padding: 3px 8px; border-radius: 6px; text-decoration: none; color: var(--text-2); }
+.sub a.on { color: var(--accent); font-weight: 500; }
+.sub a:hover { background: var(--surface-2); }
+.badge { display: inline-block; min-width: 22px; padding: 0 7px; border-radius: 999px; background: var(--bad-soft); color: var(--bad); font-size: .75rem; text-align: center; }
+.badge.zero { background: var(--surface-2); color: var(--muted); }
+.overall { margin: 22px 8px 0; padding: 12px; border-radius: 10px; background: var(--surface-2); font-size: .85rem; }
+.overall b { font-size: 1.2rem; }
+.linkbtn { background: none; border: 0; padding: 0; color: var(--muted); text-decoration: underline; font-size: .8rem; }
+.scrim { display: none; }
+
+@media (max-width: 860px) {
+  .app { grid-template-columns: 1fr; }
+  .side { position: fixed; z-index: 30; left: 0; top: 0; width: min(300px, 86vw); transform: translateX(-102%); transition: transform .2s; box-shadow: 0 0 30px rgba(0,0,0,.2); }
+  .side.open { transform: none; }
+  .scrim.open { display: block; position: fixed; inset: 0; z-index: 20; background: rgba(0,0,0,.35); }
+  .topbar { display: flex; align-items: center; gap: 10px; position: sticky; top: 0; z-index: 10; background: var(--surface); border-bottom: 1px solid var(--border); padding: 10px 16px; }
+  .topbar .t { font-weight: 700; flex: 1; }
+  .topbar button { background: none; border: 1px solid var(--border); border-radius: 8px; padding: 4px 10px; }
+  .main { padding: 20px 16px 64px; }
+}
+
+/* common */
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 20px; box-shadow: var(--shadow); margin-bottom: 16px; }
+.eyebrow { font-size: .8rem; color: var(--muted); margin-bottom: 4px; }
+.lead { color: var(--text-2); font-size: 1.05rem; }
+.chip { display: inline-flex; align-items: center; gap: 4px; padding: 2px 10px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); font-size: .85rem; text-decoration: none; color: var(--text); margin: 2px 4px 2px 0; }
+.chip.done { border-color: var(--good); color: var(--good); }
+.chip.lock { color: var(--muted); }
+.lbadge { display: inline-block; padding: 1px 8px; border-radius: 6px; background: var(--surface-2); color: var(--text-2); font-size: .78rem; font-weight: 500; }
+.btn { display: inline-block; padding: 9px 16px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); text-decoration: none; color: var(--text); font-weight: 500; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--surface); }
+.btn:hover { filter: brightness(.97); }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 600px) { .grid2 { grid-template-columns: 1fr; } }
+.muted { color: var(--muted); }
+.small { font-size: .88rem; }
+
+/* gloss: 새 용어를 그 자리에서 풀어쓰기 */
+.gl { font-weight: 500; border-bottom: 1px dashed var(--accent); }
+.gl-def { font-weight: 400; color: var(--text-2); font-size: .92em; }
+.gl-def::before { content: "("; } .gl-def::after { content: ")"; }
+.tlink { font-weight: 500; }
+
+.box { background: var(--surface-2); border-radius: 10px; padding: 12px 16px; margin: 12px 0; font-variant-numeric: tabular-nums; }
+.tip { border-left: 3px solid var(--accent); padding: 4px 0 4px 12px; color: var(--text-2); margin-top: 1.2em; }
+.cap { font-size: .85rem; color: var(--muted); }
+table.mini { border-collapse: collapse; width: 100%; font-size: .92rem; font-variant-numeric: tabular-nums; margin: 8px 0; }
+table.mini th, table.mini td { border-bottom: 1px solid var(--border); padding: 6px 8px; text-align: right; }
+table.mini th:first-child, table.mini td:first-child { text-align: left; }
+table.mini th { color: var(--text-2); font-weight: 500; }
+.tablewrap { overflow-x: auto; }
+
+/* tower (용어 체계) */
+.tower { display: flex; flex-direction: column; gap: 8px; }
+.floor { display: grid; grid-template-columns: 96px 1fr; gap: 12px; align-items: start; padding: 12px; border-radius: 12px; background: var(--surface); border: 1px solid var(--border); }
+.floor .fl { font-weight: 700; }
+.floor .fl small { display: block; font-weight: 400; color: var(--muted); font-size: .78rem; }
+@media (max-width: 600px) { .floor { grid-template-columns: 1fr; gap: 4px; } }
+
+/* term list */
+.tcard { display: block; text-decoration: none; color: var(--text); }
+.tcard h3 { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.state { font-size: .78rem; font-weight: 500; padding: 1px 8px; border-radius: 999px; }
+.state.done { background: var(--good-soft); color: var(--good); }
+.state.todo { background: var(--surface-2); color: var(--text-2); }
+.state.lock { background: var(--surface-2); color: var(--muted); }
+.prereq { font-size: .85rem; color: var(--text-2); margin-top: 8px; }
+.preview { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--border); }
+details > summary { cursor: pointer; color: var(--accent); font-weight: 500; }
+
+/* split: 지금은 몰라도 / 수입이 생기면 */
+.split > div { border-radius: 12px; padding: 14px 16px; }
+.split .later { background: var(--surface-2); }
+.split .income { background: var(--accent-soft); }
+.split h4 { margin: 0 0 6px; font-size: .95rem; }
+.split ul { margin: 0; padding-left: 1.1em; }
+
+/* quiz */
+.q { border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 12px; background: var(--surface); }
+.q .qh { display: flex; gap: 8px; align-items: baseline; margin-bottom: 10px; }
+.q .qn { flex: none; font-weight: 700; color: var(--accent); }
+.q .qtag { display: block; font-size: .78rem; color: var(--muted); }
+.opts { display: grid; gap: 8px; }
+.opt { text-align: left; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); }
+.opt:hover:not(:disabled) { border-color: var(--accent); }
+.opt:disabled { cursor: default; }
+.opt.right { border-color: var(--good); background: var(--good-soft); color: var(--good); font-weight: 500; }
+.opt.wrong { border-color: var(--bad); background: var(--bad-soft); color: var(--bad); }
+.opt.idk { border-style: dashed; color: var(--muted); }
+.fb { margin-top: 12px; padding: 12px 14px; border-radius: 10px; background: var(--surface-2); }
+.fb .res { font-weight: 700; margin-right: 6px; }
+.fb .res.ok { color: var(--good); } .fb .res.no { color: var(--bad); }
+
+.locked { position: relative; padding: 28px 20px; text-align: center; border: 1px dashed var(--border); border-radius: 14px; color: var(--muted); }
+.locked svg { display: block; margin: 0 auto 8px; }
+
+/* calculator */
+.calc { border: 1px solid var(--border); border-radius: 14px; padding: 16px; background: var(--surface); margin: 12px 0; }
+.calc .inputs { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+.calc label { display: block; font-size: .85rem; color: var(--text-2); }
+.calc input[type=number], .calc select { width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font: inherit; font-variant-numeric: tabular-nums; }
+.calc input[type=range] { width: 100%; accent-color: var(--accent); }
+.calc .chk { display: flex; align-items: center; gap: 6px; font-size: .9rem; color: var(--text); margin-top: 4px; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin: 16px 0 8px; }
+.tile { background: var(--surface-2); border-radius: 10px; padding: 10px 12px; }
+.tile .k { font-size: .8rem; color: var(--text-2); display: flex; align-items: center; gap: 6px; }
+.tile .v { font-size: 1.15rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.sw { width: 10px; height: 10px; border-radius: 3px; display: inline-block; flex: none; }
+.legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: .85rem; color: var(--text-2); margin: 6px 0; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend .ln { width: 18px; height: 0; border-top: 2px solid; display: inline-block; }
+.chart { position: relative; }
+.chart svg { display: block; width: 100%; height: auto; touch-action: pan-y; }
+.chart text { fill: var(--muted); font-size: 11px; font-family: inherit; font-variant-numeric: tabular-nums; }
+.chart text.end { fill: var(--text-2); font-size: 11.5px; font-weight: 500; }
+.tt { position: absolute; pointer-events: none; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; font-size: .82rem; box-shadow: 0 4px 16px rgba(0,0,0,.12); white-space: nowrap; display: none; font-variant-numeric: tabular-nums; z-index: 2; }
+.tt .r { display: flex; align-items: center; gap: 6px; justify-content: space-between; }
+.tt .r b { margin-left: 12px; }
+
+/* roadmap */
+.week { display: grid; grid-template-columns: 56px 1fr; gap: 14px; }
+.week .wn { text-align: center; }
+.week .wn b { display: block; font-size: 1.4rem; line-height: 1.1; }
+.week .wn small { color: var(--muted); font-size: .75rem; }
+.week.current { border-color: var(--accent); }
+.week.isdone { opacity: .72; }
+.week ol { margin: 6px 0 10px; padding-left: 1.2em; }
+.doit { background: var(--accent-soft); border-radius: 10px; padding: 10px 12px; font-size: .95rem; }
+.doit b { color: var(--accent); }
+.wcheck { display: inline-flex; align-items: center; gap: 6px; margin-top: 10px; font-size: .9rem; color: var(--text-2); }
+.wcheck input { width: 18px; height: 18px; accent-color: var(--accent); }
+
+.pager { display: flex; justify-content: space-between; gap: 12px; margin-top: 24px; }
+.footer { margin-top: 40px; font-size: .8rem; color: var(--muted); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+</style>
+</head>
+<body>
+<div class="topbar">
+  <button id="menuBtn" aria-label="메뉴 열기">☰</button>
+  <span class="t">경제나무</span>
+  <a class="badge zero" id="topWrong" href="#/review" title="오답 노트">0</a>
+</div>
+<div class="app">
+  <aside class="side" id="side"></aside>
+  <div class="scrim" id="scrim"></div>
+  <main class="main" id="main"></main>
+</div>
+
+<script>
+/* ===================== 저장소 ===================== */
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
+  del(k) { try { localStorage.removeItem(k); } catch (e) {} }
+};
+
+/* ===================== 진도 ===================== */
+const Progress = (() => {
+  const KEY = 'et.progress.v1';
+  let s = store.get(KEY, { terms: {}, weeks: {} });
+  const save = () => { store.set(KEY, s); App.refreshSide(); };
+  return {
+    termDone: id => !!s.terms[id],
+    setTerm(id) { if (!s.terms[id]) { s.terms[id] = Date.now(); save(); } },
+    weekDone: n => !!s.weeks[n],
+    setWeek(n, v) { if (v) s.weeks[n] = Date.now(); else delete s.weeks[n]; save(); },
+    reset() { s = { terms: {}, weeks: {} }; store.del(KEY); }
+  };
+})();
+
+/* ===================== 퀴즈 엔진 (재사용 가능) =====================
+   QuizEngine.register(questions, meta)   문제 은행에 등록 (meta는 각 문제에 합쳐짐, 예: {termId})
+   QuizEngine.mount(el, questions, opts)  문제 묶음을 el에 그림
+       opts.mode       'learn' | 'review'   (review면 문항마다 출처 용어 표시)
+       opts.onAnswer   (q, ok) => {}
+       opts.onComplete (results) => {}      묶음의 모든 문제를 답했을 때
+   QuizEngine.wrongIds(filterFn)          현재 오답 문제 id 목록
+   QuizEngine.get(id) / isAnswered(id) / onChange(fn) / reset()
+   - 틀리면 오답 목록에 추가, 나중에 맞히면 자동으로 빠진다.
+   - "잘 모르겠어요"는 오답으로 기록된다(찍지 않은 정직한 답).
+   ================================================================= */
+const QuizEngine = (() => {
+  const KEY = 'et.quiz.v1';
+  const bank = {};
+  const listeners = [];
+  let st = store.get(KEY, { wrong: {}, answered: {} });
+  const save = () => { store.set(KEY, st); listeners.forEach(f => f()); };
+  const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+
+  function record(q, ok) {
+    st.answered[q.id] = { ok, at: Date.now() };
+    if (ok) delete st.wrong[q.id]; else st.wrong[q.id] = (st.wrong[q.id] || 0) + 1;
+    save();
+  }
+
+  function mount(el, qs, opts = {}) {
+    const fmt = opts.format || (s => s);
+    const results = {};
+    el.innerHTML = '';
+    qs.forEach((q, i) => {
+      const card = document.createElement('div');
+      card.className = 'q';
+      const tag = opts.mode === 'review' && opts.tag ? `<span class="qtag">${opts.tag(q)}</span>` : '';
+      card.innerHTML = `<div class="qh"><span class="qn">Q${i + 1}</span><div>${tag}${fmt(q.q)}</div></div><div class="opts"></div>`;
+      const box = card.querySelector('.opts');
+      const order = shuffle(q.choices.map((c, idx) => idx));
+      const buttons = [];
+      const answer = picked => {
+        const ok = picked === q.answer;
+        buttons.forEach(b => {
+          b.disabled = true;
+          const idx = +b.dataset.idx;
+          if (idx === q.answer) b.classList.add('right');
+          else if (idx === picked) b.classList.add('wrong');
+        });
+        const fb = document.createElement('div');
+        fb.className = 'fb';
+        const label = ok ? '<span class="res ok">정답!</span>' : (picked === -1 ? '<span class="res no">괜찮아요, 지금 배우면 돼요.</span>' : '<span class="res no">아쉬워요.</span>');
+        fb.innerHTML = `${label}${fmt(q.explain)}${ok ? '' : '<div class="small muted" style="margin-top:6px">→ 오답 노트에 담았어요. 나중에 다시 나와요.</div>'}`;
+        card.appendChild(fb);
+        record(q, ok);
+        results[q.id] = ok;
+        opts.onAnswer && opts.onAnswer(q, ok);
+        if (Object.keys(results).length === qs.length) opts.onComplete && opts.onComplete(results);
+      };
+      order.forEach(idx => {
+        const b = document.createElement('button');
+        b.className = 'opt'; b.dataset.idx = idx; b.innerHTML = fmt(q.choices[idx]);
+        b.onclick = () => answer(idx);
+        buttons.push(b); box.appendChild(b);
+      });
+      const idk = document.createElement('button');
+      idk.className = 'opt idk'; idk.dataset.idx = -1; idk.textContent = '잘 모르겠어요';
+      idk.onclick = () => answer(-1);
+      buttons.push(idk); box.appendChild(idk);
+      el.appendChild(card);
+    });
+  }
+
+  return {
+    register(qs, meta = {}) { qs.forEach(q => { bank[q.id] = Object.assign({}, q, meta); }); },
+    mount,
+    get: id => bank[id],
+    isAnswered: id => !!st.answered[id],
+    wrongIds: filter => Object.keys(st.wrong).filter(id => bank[id] && (!filter || filter(bank[id]))),
+    onChange: fn => listeners.push(fn),
+    reset() { st = { wrong: {}, answered: {} }; store.del(KEY); save(); }
+  };
+})();
+
+/* ===================== 유틸 ===================== */
+const TERM = Object.fromEntries(DATA.TERMS.map(t => [t.id, t]));
+const LAYER = Object.fromEntries(DATA.LAYERS.map(l => [l.n, l]));
+const termsOf = n => DATA.TERMS.filter(t => t.layer === n);
+DATA.TERMS.forEach(t => t.quiz && QuizEngine.register(t.quiz, { termId: t.id }));
+
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+function rich(s) {
+  return String(s)
+    .replace(/\[\[([^|\]]+)\|([^\]]+)\]\]/g, '<span class="gl">$1</span><span class="gl-def">$2</span>')
+    .replace(/@@(\w+)@@/g, (m, id) => TERM[id] ? `<a class="tlink" href="#/term/${id}">${TERM[id].name}</a>` : m)
+    .replace(/\{\{(\w+)\}\}/g, '<div data-widget="$1"></div>');
+}
+function mountWidgets(root) {
+  root.querySelectorAll('[data-widget="calc"]').forEach(el => Calc.mount(el));
+}
+function fmtKRW(won) {
+  won = Math.round(won / 10000) * 10000;
+  const eok = Math.floor(won / 1e8), man = Math.round((won % 1e8) / 1e4);
+  if (eok && man) return `${eok.toLocaleString()}억 ${man.toLocaleString()}만원`;
+  if (eok) return `${eok.toLocaleString()}억원`;
+  return `${man.toLocaleString()}만원`;
+}
+function fmtShort(won) {
+  if (won >= 1e8) return (won / 1e8).toFixed(won >= 1e9 ? 0 : 1).replace(/\.0$/, '') + '억';
+  return Math.round(won / 1e4).toLocaleString() + '만';
+}
+const layerStats = n => {
+  const ts = termsOf(n), ready = ts.filter(t => t.ready);
+  const done = ts.filter(t => Progress.termDone(t.id)).length;
+  return { total: ts.length, ready: ready.length, done };
+};
+const prereqChips = ids => ids.map(id => {
+  const t = TERM[id];
+  const done = Progress.termDone(id);
+  return `<a class="chip ${done ? 'done' : (t.ready ? '' : 'lock')}" href="#/term/${id}">${done ? '✓ ' : ''}${t.name}<span class="muted small">${t.layer}층</span></a>`;
+}).join('');
+const splitBox = (later, income) => `
+  <div class="grid2 split">
+    <div class="later"><h4>지금은 몰라도 되는 것</h4><ul>${later.map(x => `<li>${rich(x)}</li>`).join('')}</ul></div>
+    <div class="income"><h4>수입이 생기면 바로 할 것</h4><ul>${income.map(x => `<li>${rich(x)}</li>`).join('')}</ul></div>
+  </div>`;
+const ICON_LOCK = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>';
+
+/* ===================== 복리 계산기 ===================== */
+const Calc = (() => {
+  const KEY = 'et.calc.v1';
+  let uid = 0;
+  function compute(p) {
+    const P = p.principal * 1e4, r = p.rate / 100, i = p.inflation / 100, f = p.freq;
+    const simple = [], comp = [], real = [];
+    for (let y = 0; y <= p.years; y++) {
+      simple.push(P * (1 + r * y));
+      const c = P * Math.pow(1 + r / f, f * y);
+      comp.push(c);
+      real.push(c / Math.pow(1 + i, y));
+    }
+    return { P, simple, comp, real };
+  }
+  function mount(el) {
+    const id = 'c' + (++uid);
+    const p = Object.assign({}, DATA.CALC_DEFAULT, store.get(KEY, {}));
+    el.className = 'calc';
+    el.innerHTML = `
+      <div class="inputs">
+        <div><label for="${id}p">원금 (만원)</label><input id="${id}p" type="number" min="1" step="100" value="${p.principal}"></div>
+        <div><label for="${id}r">연 수익률 (%)</label><input id="${id}r" type="number" min="0" max="30" step="0.5" value="${p.rate}"></div>
+        <div><label for="${id}y">기간: <b class="yv">${p.years}</b>년</label><input id="${id}y" type="range" min="1" max="50" value="${p.years}"></div>
+        <div><label for="${id}f">복리 주기</label><select id="${id}f"><option value="1">1년마다</option><option value="12">매달</option></select></div>
+        <div><label for="${id}i">물가상승률 (%)</label><input id="${id}i" type="number" min="0" max="15" step="0.5" value="${p.inflation}">
+          <label class="chk"><input type="checkbox" class="real"> 물가 반영 가치 보기</label></div>
+      </div>
+      <div class="tiles"></div>
+      <div class="legend"></div>
+      <div class="chart"></div>
+      <details style="margin-top:8px"><summary>연도별 표로 보기</summary><div class="tablewrap"></div></details>
+      <p class="cap" style="margin:8px 0 0">샘플 계산이에요. 세금·수수료는 빠져 있고, 실제 투자 수익률은 매년 달라요.</p>`;
+    const $ = s => el.querySelector(s);
+    $(`#${id}f`).value = String(p.freq);
+    $('.real').checked = !!p.showReal;
+    const read = () => {
+      const num = (sel, lo, hi, d) => { const v = parseFloat($(sel).value); return isFinite(v) ? Math.min(hi, Math.max(lo, v)) : d; };
+      p.principal = num(`#${id}p`, 1, 1e7, 1000);
+      p.rate = num(`#${id}r`, 0, 30, 7);
+      p.years = num(`#${id}y`, 1, 50, 30);
+      p.freq = +$(`#${id}f`).value;
+      p.inflation = num(`#${id}i`, 0, 15, 2.5);
+      p.showReal = $('.real').checked;
+      store.set(KEY, p);
+      render();
+    };
+    el.querySelectorAll('input,select').forEach(x => x.addEventListener('input', read));
+    function render() {
+      $('.yv').textContent = p.years;
+      const d = compute(p);
+      const n = p.years;
+      const dbl = p.rate > 0 ? (72 / p.rate) : null;
+      $('.tiles').innerHTML = `
+        <div class="tile"><div class="k"><span class="sw" style="background:var(--series-2)"></span>단리 ${n}년 뒤</div><div class="v">${fmtKRW(d.simple[n])}</div></div>
+        <div class="tile"><div class="k"><span class="sw" style="background:var(--series-1)"></span>복리 ${n}년 뒤</div><div class="v">${fmtKRW(d.comp[n])}</div></div>
+        <div class="tile"><div class="k">복리 − 단리</div><div class="v">${fmtKRW(d.comp[n] - d.simple[n])}</div></div>
+        <div class="tile"><div class="k">72의 법칙: 2배까지</div><div class="v">${dbl ? '약 ' + dbl.toFixed(1) + '년' : '—'}</div></div>
+        ${p.showReal ? `<div class="tile"><div class="k"><span class="sw" style="background:var(--series-3)"></span>복리, 지금 돈 가치로</div><div class="v">${fmtKRW(d.real[n])}</div></div>` : ''}`;
+      const series = [
+        { name: '복리', color: 'var(--series-1)', values: d.comp },
+        { name: '단리', color: 'var(--series-2)', values: d.simple }
+      ];
+      if (p.showReal) series.push({ name: '복리(물가 반영)', color: 'var(--series-3)', values: d.real, dash: '6 4' });
+      $('.legend').innerHTML = series.map(s => `<span><i class="ln" style="border-color:${s.color};${s.dash ? 'border-top-style:dashed' : ''}"></i>${s.name}</span>`).join('') +
+        `<span><i class="ln" style="border-color:var(--muted);border-top-style:dotted"></i>원금</span>`;
+      lineChart($('.chart'), { n, series, base: d.P });
+      $('.tablewrap').innerHTML = `<table class="mini"><thead><tr><th>연차</th><th>단리</th><th>복리</th>${p.showReal ? '<th>복리(물가 반영)</th>' : ''}</tr></thead><tbody>` +
+        d.comp.map((c, y) => `<tr><td>${y}년</td><td>${fmtKRW(d.simple[y])}</td><td>${fmtKRW(c)}</td>${p.showReal ? `<td>${fmtKRW(d.real[y])}</td>` : ''}</tr>`).join('') + '</tbody></table>';
+    }
+    render();
+  }
+  return { mount, compute };
+})();
+
+/* 선 그래프: 단일 y축, 직접 라벨 + 범례, 십자선 툴팁 */
+function lineChart(host, { n, series, base }) {
+  const W = Math.max(300, Math.round(host.clientWidth || 640)), H = W < 520 ? 260 : 300;
+  const m = { l: 44, r: W < 520 ? 84 : 96, t: 14, b: 30 };
+  host._redraw = () => lineChart(host, { n, series, base });
+  const pw = W - m.l - m.r, ph = H - m.t - m.b;
+  const max = Math.max(base, ...series.flatMap(s => s.values));
+  const nice = v => { const p = Math.pow(10, Math.floor(Math.log10(v))); const k = v / p; return (k <= 1 ? 1 : k <= 2 ? 2 : k <= 5 ? 5 : 10) * p; };
+  const step = nice(max / 4), top = Math.ceil(max / step) * step;
+  const x = i => m.l + (i / n) * pw, y = v => m.t + ph - (v / top) * ph;
+  const path = vals => vals.map((v, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join('');
+  let g = '';
+  for (let v = 0; v <= top + 1; v += step) g += `<line x1="${m.l}" x2="${W - m.r}" y1="${y(v)}" y2="${y(v)}" stroke="var(--grid)"/><text x="${m.l - 6}" y="${y(v) + 4}" text-anchor="end">${v ? fmtShort(v) : '0'}</text>`;
+  const xs = n <= 10 ? (W < 520 ? 2 : 1) : n <= 20 ? 5 : 10;
+  for (let i = 0; i <= n; i += xs) g += `<text x="${x(i)}" y="${H - 8}" text-anchor="middle">${i}년</text>`;
+  g += `<line x1="${m.l}" x2="${W - m.r}" y1="${y(base)}" y2="${y(base)}" stroke="var(--muted)" stroke-dasharray="2 3"/>`;
+  series.forEach(s => g += `<path d="${path(s.values)}" fill="none" stroke="${s.color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" ${s.dash ? `stroke-dasharray="${s.dash}"` : ''}/>`);
+  // 끝 라벨 — 겹치지 않게 최소 간격 확보
+  const ends = series.map(s => ({ s, yy: y(s.values[n]) })).sort((a, b) => a.yy - b.yy);
+  for (let i = 1; i < ends.length; i++) if (ends[i].yy - ends[i - 1].yy < 26) ends[i].yy = ends[i - 1].yy + 26;
+  ends.forEach(e => g += `<circle cx="${x(n)}" cy="${y(e.s.values[n])}" r="3.5" fill="${e.s.color}" stroke="var(--surface)" stroke-width="2"/><text class="end" x="${x(n) + 8}" y="${e.yy}">${e.s.name}</text><text x="${x(n) + 8}" y="${e.yy + 13}">${fmtShort(e.s.values[n])}</text>`);
+  g += `<g class="hov" style="display:none"><line class="cx" y1="${m.t}" y2="${m.t + ph}" stroke="var(--muted)" stroke-width="1"/>${series.map(s => `<circle r="4.5" fill="${s.color}" stroke="var(--surface)" stroke-width="2"/>`).join('')}</g>`;
+  g += `<rect class="hit" x="${m.l - 10}" y="0" width="${pw + 20}" height="${H}" fill="transparent"/>`;
+  host.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="단리와 복리 금액 비교 그래프">${g}</svg><div class="tt"></div>`;
+  const svg = host.querySelector('svg'), hov = svg.querySelector('.hov'), tt = host.querySelector('.tt');
+  const dots = hov.querySelectorAll('circle'), cx = hov.querySelector('.cx');
+  const move = ev => {
+    const r = svg.getBoundingClientRect(), sx = W / r.width;
+    const px = (ev.clientX - r.left) * sx;
+    const i = Math.max(0, Math.min(n, Math.round((px - m.l) / pw * n)));
+    hov.style.display = '';
+    cx.setAttribute('x1', x(i)); cx.setAttribute('x2', x(i));
+    series.forEach((s, k) => { dots[k].setAttribute('cx', x(i)); dots[k].setAttribute('cy', y(s.values[i])); });
+    tt.innerHTML = `<div style="font-weight:700;margin-bottom:2px">${i}년 뒤</div>` + series.map(s => `<div class="r"><span><span class="sw" style="background:${s.color}"></span> ${s.name}</span><b>${fmtKRW(s.values[i])}</b></div>`).join('');
+    tt.style.display = 'block';
+    const left = x(i) / sx, w = tt.offsetWidth;
+    tt.style.left = Math.max(0, Math.min(r.width - w, left + (left > r.width / 2 ? -w - 12 : 12))) + 'px';
+    tt.style.top = '8px';
+  };
+  const hit = svg.querySelector('.hit');
+  hit.addEventListener('pointermove', move);
+  hit.addEventListener('pointerdown', move);
+  hit.addEventListener('pointerleave', () => { hov.style.display = 'none'; tt.style.display = 'none'; });
+}
+
+/* ===================== 화면 ===================== */
+const Views = {
+  home() {
+    const next = DATA.TERMS.find(t => t.ready && !Progress.termDone(t.id));
+    const floors = [...DATA.LAYERS].reverse().map(l => `
+      <div class="floor">
+        <div class="fl"><a href="#/layer/${l.n}" style="text-decoration:none;color:inherit">${l.n}층 ${l.name}</a><small>${l.desc}</small></div>
+        <div>${termsOf(l.n).map(t => {
+          const d = Progress.termDone(t.id);
+          return `<a class="chip ${d ? 'done' : (t.ready ? '' : 'lock')}" href="#/term/${t.id}">${d ? '✓ ' : ''}${t.name}</a>`;
+        }).join('')}</div>
+      </div>`).join('');
+    return `
+      <div class="eyebrow">경제나무</div>
+      <h1>모르는 말로 설명하지 않는 경제 공부</h1>
+      <p class="lead">용어를 5층으로 쌓아 올립니다. 아래층을 알아야 위층이 보여요. 각 용어는 <b>퀴즈를 먼저 찍고</b>, 그다음에 설명이 열려요.</p>
+      ${next ? `<div class="card"><div class="eyebrow">이어서 하기</div><h3>${next.layer}층 · ${next.name}</h3><p class="muted">${next.oneLine}</p><a class="btn primary" href="#/term/${next.id}">퀴즈부터 시작</a> <a class="btn" href="#/roadmap">12주 로드맵</a></div>`
+        : `<div class="card"><h3>1층을 모두 마쳤어요 🎉</h3><p>2층(상품)은 다음 업데이트에서 열려요. 그동안 <a href="#/review">오답 노트</a>와 <a href="#/calc">복리 계산기</a>로 복습해보세요.</p></div>`}
+      <h2 style="margin-top:28px">용어 체계</h2>
+      <p class="muted small">위로 갈수록 아래층 개념이 필요해요. 회색 용어는 다음 업데이트에서 열리고, 5층은 미리보기만 가능해요.</p>
+      <div class="tower">${floors}</div>`;
+  },
+
+  roadmap() {
+    const cur = DATA.ROADMAP.find(w => !Progress.weekDone(w.week));
+    const doneN = DATA.ROADMAP.filter(w => Progress.weekDone(w.week)).length;
+    return `
+      <div class="eyebrow">12주 로드맵</div>
+      <h1>12주 동안 5층까지</h1>
+      <p class="lead">한 주에 핵심 3개, 직접 해볼 것 1개. 수입이 없어도 할 수 있는 것만 골랐어요.</p>
+      <p class="small muted">완료 ${doneN} / 12주</p>
+      <div class="bar" style="margin-bottom:20px"><i style="width:${doneN / 12 * 100}%"></i></div>
+      ${DATA.ROADMAP.map(w => `
+        <div class="card week ${cur && cur.week === w.week ? 'current' : ''} ${Progress.weekDone(w.week) ? 'isdone' : ''}">
+          <div class="wn"><small>WEEK</small><b>${w.week}</b><span class="lbadge">${w.layer}층</span></div>
+          <div>
+            <h3>${w.title}${cur && cur.week === w.week ? ' <span class="state todo">이번 주</span>' : ''}</h3>
+            <ol>${w.core.map(([txt, id]) => `<li>${esc(txt)} ${TERM[id] ? `<a class="small" href="#/term/${id}">${TERM[id].name} →</a>` : ''}</li>`).join('')}</ol>
+            <div class="doit"><b>직접 해볼 것</b> · ${esc(w.doit)}</div>
+            <label class="wcheck"><input type="checkbox" data-week="${w.week}" ${Progress.weekDone(w.week) ? 'checked' : ''}> 이번 주 완료</label>
+          </div>
+        </div>`).join('')}`;
+  },
+  roadmapMounted(root) {
+    root.querySelectorAll('[data-week]').forEach(cb => cb.onchange = () => { Progress.setWeek(+cb.dataset.week, cb.checked); App.route(); });
+  },
+
+  layer(n) {
+    const l = LAYER[n];
+    if (!l) return Views.notFound();
+    const st = layerStats(n);
+    const cards = termsOf(n).map(t => {
+      const done = Progress.termDone(t.id);
+      const state = done ? '<span class="state done">완료</span>' : t.ready ? '<span class="state todo">학습 가능</span>' : '<span class="state lock">다음 업데이트</span>';
+      const pre = t.prereq.length ? `<div class="prereq">먼저 알아야 할 개념: ${prereqChips(t.prereq)}</div>` : '';
+      const preview = t.preview ? `<details class="preview"><summary>한 문단 미리보기</summary><p style="margin-top:8px">${rich(t.preview)}</p></details>` : '';
+      return `<div class="card">
+        <a class="tcard" href="#/term/${t.id}"><h3>${t.name} <span class="muted small" style="font-weight:400">${t.en}</span> ${state}</h3><p style="margin:0" class="muted">${rich(t.oneLine)}</p></a>
+        ${pre}${preview}</div>`;
+    }).join('');
+    return `
+      <div class="eyebrow">${n}층</div>
+      <h1>${l.name}</h1>
+      <p class="lead">${l.desc}</p>
+      <p class="small muted">진도 ${st.done} / ${st.total}${st.ready < st.total ? ` · 지금 열린 용어 ${st.ready}개` : ''}</p>
+      ${n === 5 ? '<p class="tip">5층은 아직 배우지 않아도 괜찮아요. 각 카드의 "한 문단 미리보기"로 어떤 개념인지만 맛보세요.</p>' : ''}
+      ${cards}
+      <h2 style="margin-top:28px">${l.name} 층 전체 정리</h2>
+      ${splitBox(l.later, l.onIncome)}
+      ${l.note ? `<p class="cap" style="margin-top:10px">${l.note}</p>` : ''}`;
+  },
+
+  term(id) {
+    const t = TERM[id];
+    if (!t) return Views.notFound();
+    const l = LAYER[t.layer];
+    const head = `
+      <div class="eyebrow"><a href="#/layer/${t.layer}">${t.layer}층 ${l.name}</a></div>
+      <h1>${t.name} <span class="muted" style="font-size:1rem;font-weight:400">${t.en}</span></h1>
+      <p class="lead">${rich(t.oneLine)}</p>
+      ${t.prereq.length ? `<div class="prereq" style="margin-bottom:16px">${t.layer > 1 ? '먼저 알아야 할 하위 개념' : '먼저 보면 좋은 개념'}: ${prereqChips(t.prereq)}</div>` : ''}`;
+    if (!t.ready) {
+      return head + (t.preview
+        ? `<div class="card"><h3>한 문단 미리보기</h3><p>${rich(t.preview)}</p></div>`
+        : '') + `<div class="locked">${ICON_LOCK}이 용어의 퀴즈와 설명은 다음 업데이트에서 열려요.<br>그 전에 위의 하위 개념부터 익혀두세요.</div>`;
+    }
+    const ts = termsOf(t.layer).filter(x => x.ready);
+    const i = ts.indexOf(t);
+    const prev = ts[i - 1], next = ts[i + 1];
+    return head + `
+      <h2>① 먼저 찍어보세요 <span class="muted small" style="font-weight:400">${t.quiz.length}문제 · 틀려도 괜찮아요</span></h2>
+      <div id="quiz"></div>
+      <h2 style="margin-top:28px">② 설명</h2>
+      <div id="body"></div>
+      <h2 style="margin-top:28px">③ 지금 할 것 / 나중에 할 것</h2>
+      ${splitBox(t.later, t.onIncome)}
+      <div class="pager">
+        ${prev ? `<a class="btn" href="#/term/${prev.id}">← ${prev.name}</a>` : '<span></span>'}
+        ${next ? `<a class="btn primary" href="#/term/${next.id}">${next.name} →</a>` : `<a class="btn primary" href="#/layer/${t.layer + 1}">${t.layer + 1}층 둘러보기 →</a>`}
+      </div>`;
+  },
+  termMounted(root, id) {
+    const t = TERM[id];
+    if (!t || !t.ready) return;
+    const body = root.querySelector('#body');
+    const open = () => { body.innerHTML = `<div class="card">${rich(t.body)}</div>`; mountWidgets(body); };
+    const unlocked = Progress.termDone(id) || t.quiz.every(q => QuizEngine.isAnswered(q.id));
+    if (unlocked) { Progress.setTerm(id); open(); }
+    else body.innerHTML = `<div class="locked">${ICON_LOCK}위 퀴즈를 모두 찍으면 설명이 열려요.<br><span class="small">맞히는 게 목적이 아니라, 머릿속에 질문을 먼저 만드는 단계예요.</span></div>`;
+    QuizEngine.mount(root.querySelector('#quiz'), t.quiz, {
+      format: rich,
+      onComplete: () => {
+        if (!body.querySelector('.card')) { Progress.setTerm(id); open(); body.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+      }
+    });
+  },
+
+  calc() {
+    return `
+      <div class="eyebrow">도구</div>
+      <h1>복리 계산기</h1>
+      <p class="lead">원금·수익률·기간을 바꿔가며 @@simple@@와 @@compound@@의 차이를 눈으로 확인하세요. 그래프 위를 누르거나 마우스를 올리면 연도별 금액이 보여요.</p>
+      {{calc}}
+      <p class="small muted">"물가 반영 가치"를 켜면 @@real@@ 관점에서, 미래의 금액이 <b>지금 돈으로 얼마어치</b>인지 보여줘요.</p>`;
+  },
+
+  review() {
+    const ids = QuizEngine.wrongIds();
+    const byTerm = {};
+    ids.forEach(id => { const t = QuizEngine.get(id).termId; byTerm[t] = (byTerm[t] || 0) + 1; });
+    return `
+      <div class="eyebrow">오답 노트</div>
+      <h1>틀린 문제만 다시</h1>
+      <p class="lead">틀렸거나 "잘 모르겠어요"를 고른 문제만 모았어요. 다시 맞히면 목록에서 빠져요.</p>
+      ${ids.length ? `
+        <div class="card"><b>남은 오답 ${ids.length}개</b>
+          <div style="margin-top:8px">${Object.entries(byTerm).map(([tid, c]) => `<a class="chip" href="#/term/${tid}">${TERM[tid].name} <span class="badge">${c}</span></a>`).join('')}</div>
+        </div>
+        <div id="rq"></div><div id="rdone"></div>`
+      : `<div class="locked">아직 오답이 없어요.<br><a href="#/">용어 퀴즈를 풀러 가기</a></div>`}`;
+  },
+  reviewMounted(root) {
+    const el = root.querySelector('#rq');
+    if (!el) return;
+    const qs = QuizEngine.wrongIds().map(QuizEngine.get);
+    QuizEngine.mount(el, qs, {
+      mode: 'review', format: rich,
+      tag: q => `${TERM[q.termId].layer}층 · ${TERM[q.termId].name}`,
+      onComplete: res => {
+        const ok = Object.values(res).filter(Boolean).length;
+        const left = QuizEngine.wrongIds().length;
+        root.querySelector('#rdone').innerHTML = `<div class="card"><b>${qs.length}문제 중 ${ok}개 맞혔어요.</b> ${left ? `남은 오답 ${left}개.` : '오답을 모두 정리했어요!'}
+          <div style="margin-top:10px">${left ? '<a class="btn primary" href="#/review" onclick="App.route();return false">남은 오답 다시 풀기</a>' : '<a class="btn primary" href="#/">홈으로</a>'}</div></div>`;
+      }
+    });
+  },
+
+  notFound() { return `<h1>페이지를 찾을 수 없어요</h1><a href="#/">홈으로</a>`; }
+};
+
+/* ===================== 앱 셸 ===================== */
+const App = {
+  path: [],
+  route() {
+    const parts = (location.hash.replace(/^#\/?/, '') || '').split('/').filter(Boolean);
+    App.path = parts;
+    const [p, a] = parts;
+    const main = document.getElementById('main');
+    let html, after;
+    if (!p) html = Views.home();
+    else if (p === 'roadmap') { html = Views.roadmap(); after = r => Views.roadmapMounted(r); }
+    else if (p === 'layer') html = Views.layer(+a);
+    else if (p === 'term') { html = Views.term(a); after = r => Views.termMounted(r, a); }
+    else if (p === 'calc') html = Views.calc();
+    else if (p === 'review') { html = Views.review(); after = r => Views.reviewMounted(r); }
+    else html = Views.notFound();
+    main.innerHTML = rich(html) + `<p class="footer">교육용 사이트예요. 숫자는 모두 샘플이며 특정 상품의 투자 권유가 아닙니다. 진도와 오답은 이 브라우저에만 저장돼요.</p>`;
+    mountWidgets(main);
+    after && after(main);
+    App.refreshSide();
+    App.closeMenu();
+    window.scrollTo(0, 0);
+  },
+  refreshSide() {
+    const [p, a] = App.path;
+    const curLayer = p === 'layer' ? +a : p === 'term' && TERM[a] ? TERM[a].layer : null;
+    const wrong = QuizEngine.wrongIds().length;
+    const ready = DATA.TERMS.filter(t => t.ready);
+    const doneAll = DATA.TERMS.filter(t => Progress.termDone(t.id)).length;
+    const weeks = DATA.ROADMAP.filter(w => Progress.weekDone(w.week)).length;
+    const on = c => c ? 'on' : '';
+    const layers = DATA.LAYERS.map(l => {
+      const s = layerStats(l.n);
+      const sub = curLayer === l.n ? `<div class="sub">${termsOf(l.n).map(t =>
+        `<a class="${on(p === 'term' && a === t.id)}" href="#/term/${t.id}">${Progress.termDone(t.id) ? '✓' : t.ready ? '·' : '🔒'} ${t.name}</a>`).join('')}</div>` : '';
+      return `<a class="item ${on(curLayer === l.n)}" href="#/layer/${l.n}">
+          <div class="row"><span><span class="lv">${l.n}</span>${l.name}</span><span class="cnt">${s.done}/${s.total}</span></div>
+          <div class="bar"><i style="width:${s.done / s.total * 100}%"></i></div></a>${sub}`;
+    }).join('');
+    document.getElementById('side').innerHTML = `
+      <a class="brand" href="#/"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round"><path d="M12 22V10"/><path d="M12 14c-4 0-6-2-6-6 4 0 6 2 6 6z"/><path d="M12 10c0-4 2-6 6-6 0 4-2 6-6 6z"/></svg>경제나무</a>
+      <nav class="nav">
+        <a class="item ${on(!p)}" href="#/">홈 · 용어 체계</a>
+        <a class="item ${on(p === 'roadmap')}" href="#/roadmap"><div class="row"><span>12주 로드맵</span><span class="cnt">${weeks}/12</span></div></a>
+        <div class="nav-sec">용어 5층</div>
+        ${layers}
+        <div class="nav-sec">도구</div>
+        <a class="item ${on(p === 'calc')}" href="#/calc">복리 계산기</a>
+        <a class="item ${on(p === 'review')}" href="#/review"><div class="row"><span>오답 노트</span><span class="badge ${wrong ? '' : 'zero'}">${wrong}</span></div></a>
+      </nav>
+      <div class="overall">전체 진도<br><b>${doneAll}</b> / ${DATA.TERMS.length} 용어 <span class="muted">(지금 열린 ${ready.length}개)</span>
+        <div class="bar"><i style="width:${doneAll / DATA.TERMS.length * 100}%"></i></div>
+        <div style="margin-top:10px"><button class="linkbtn" id="resetBtn">진도·오답 초기화</button></div>
+      </div>`;
+    const tw = document.getElementById('topWrong');
+    tw.textContent = wrong; tw.className = 'badge' + (wrong ? '' : ' zero');
+    document.getElementById('resetBtn').onclick = () => {
+      if (confirm('진도와 오답 기록을 모두 지울까요?')) { Progress.reset(); QuizEngine.reset(); App.route(); }
+    };
+  },
+  openMenu() { document.getElementById('side').classList.add('open'); document.getElementById('scrim').classList.add('open'); },
+  closeMenu() { document.getElementById('side').classList.remove('open'); document.getElementById('scrim').classList.remove('open'); }
+};
+QuizEngine.onChange(() => App.refreshSide());
+document.getElementById('menuBtn').onclick = App.openMenu;
+document.getElementById('scrim').onclick = App.closeMenu;
+window.addEventListener('hashchange', App.route);
+let rzT, rzW = innerWidth;
+window.addEventListener('resize', () => { clearTimeout(rzT); rzT = setTimeout(() => {
+  if (innerWidth === rzW) return; rzW = innerWidth;
+  document.querySelectorAll('.chart').forEach(c => c._redraw && c._redraw());
+}, 150); });
+App.route();
+</script>
+</body>
+</html>
