@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>경제나무 — 처음부터 배우는 자산 증식</title>
+<title>경제나무</title>
 <meta name="description" content="경제 지식이 없어도 시작할 수 있는 5층 용어 체계, 12주 로드맵, 복리 계산기, 오답 퀴즈">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
@@ -332,7 +332,7 @@ p { margin: 0 0 .9em; }
   .side { position: fixed; z-index: 30; left: 0; top: 0; width: min(300px, 86vw); transform: translateX(-102%); transition: transform .2s; box-shadow: 0 0 30px rgba(0,0,0,.2); }
   .side.open { transform: none; }
   .scrim.open { display: block; position: fixed; inset: 0; z-index: 20; background: rgba(0,0,0,.35); }
-  .topbar { display: flex; align-items: center; gap: 10px; position: sticky; top: 0; z-index: 10; background: var(--surface); border-bottom: 1px solid var(--border); padding: 10px 16px; }
+  .topbar { display: flex; align-items: center; gap: 10px; position: sticky; top: env(safe-area-inset-top, 0px); z-index: 10; background: var(--surface); border-bottom: 1px solid var(--border); padding: 10px 16px; }
   .topbar .t { font-weight: 700; flex: 1; }
   .topbar button { background: none; border: 1px solid var(--border); border-radius: 8px; padding: 4px 10px; }
   .main { padding: 20px 16px 64px; }
@@ -458,7 +458,7 @@ details > summary { cursor: pointer; color: var(--accent); font-weight: 500; }
 <div class="topbar">
   <button id="menuBtn" aria-label="메뉴 열기">☰</button>
   <span class="t">경제나무</span>
-  <a class="badge zero" id="topWrong" href="#/review" title="오답 노트">0</a>
+  <a class="badge zero" id="topWrong" href="#review" title="오답 노트">0</a>
 </div>
 <div class="app">
   <aside class="side" id="side"></aside>
@@ -578,7 +578,7 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;',
 function rich(s) {
   return String(s)
     .replace(/\[\[([^|\]]+)\|([^\]]+)\]\]/g, '<span class="gl">$1</span><span class="gl-def">$2</span>')
-    .replace(/@@(\w+)@@/g, (m, id) => TERM[id] ? `<a class="tlink" href="#/term/${id}">${TERM[id].name}</a>` : m)
+    .replace(/@@(\w+)@@/g, (m, id) => TERM[id] ? `<a class="tlink" href="#term-${id}">${TERM[id].name}</a>` : m)
     .replace(/\{\{(\w+)\}\}/g, '<div data-widget="$1"></div>');
 }
 function mountWidgets(root) {
@@ -603,7 +603,7 @@ const layerStats = n => {
 const prereqChips = ids => ids.map(id => {
   const t = TERM[id];
   const done = Progress.termDone(id);
-  return `<a class="chip ${done ? 'done' : (t.ready ? '' : 'lock')}" href="#/term/${id}">${done ? '✓ ' : ''}${t.name}<span class="muted small">${t.layer}층</span></a>`;
+  return `<a class="chip ${done ? 'done' : (t.ready ? '' : 'lock')}" href="#term-${id}">${done ? '✓ ' : ''}${t.name}<span class="muted small">${t.layer}층</span></a>`;
 }).join('');
 const splitBox = (later, income) => `
   <div class="grid2 split">
@@ -738,18 +738,18 @@ const Views = {
     const next = DATA.TERMS.find(t => t.ready && !Progress.termDone(t.id));
     const floors = [...DATA.LAYERS].reverse().map(l => `
       <div class="floor">
-        <div class="fl"><a href="#/layer/${l.n}" style="text-decoration:none;color:inherit">${l.n}층 ${l.name}</a><small>${l.desc}</small></div>
+        <div class="fl"><a href="#layer-${l.n}" style="text-decoration:none;color:inherit">${l.n}층 ${l.name}</a><small>${l.desc}</small></div>
         <div>${termsOf(l.n).map(t => {
           const d = Progress.termDone(t.id);
-          return `<a class="chip ${d ? 'done' : (t.ready ? '' : 'lock')}" href="#/term/${t.id}">${d ? '✓ ' : ''}${t.name}</a>`;
+          return `<a class="chip ${d ? 'done' : (t.ready ? '' : 'lock')}" href="#term-${t.id}">${d ? '✓ ' : ''}${t.name}</a>`;
         }).join('')}</div>
       </div>`).join('');
     return `
       <div class="eyebrow">경제나무</div>
       <h1>모르는 말로 설명하지 않는 경제 공부</h1>
       <p class="lead">용어를 5층으로 쌓아 올립니다. 아래층을 알아야 위층이 보여요. 각 용어는 <b>퀴즈를 먼저 찍고</b>, 그다음에 설명이 열려요.</p>
-      ${next ? `<div class="card"><div class="eyebrow">이어서 하기</div><h3>${next.layer}층 · ${next.name}</h3><p class="muted">${next.oneLine}</p><a class="btn primary" href="#/term/${next.id}">퀴즈부터 시작</a> <a class="btn" href="#/roadmap">12주 로드맵</a></div>`
-        : `<div class="card"><h3>1층을 모두 마쳤어요 🎉</h3><p>2층(상품)은 다음 업데이트에서 열려요. 그동안 <a href="#/review">오답 노트</a>와 <a href="#/calc">복리 계산기</a>로 복습해보세요.</p></div>`}
+      ${next ? `<div class="card"><div class="eyebrow">이어서 하기</div><h3>${next.layer}층 · ${next.name}</h3><p class="muted">${next.oneLine}</p><a class="btn primary" href="#term-${next.id}">퀴즈부터 시작</a> <a class="btn" href="#roadmap">12주 로드맵</a></div>`
+        : `<div class="card"><h3>1층을 모두 마쳤어요 🎉</h3><p>2층(상품)은 다음 업데이트에서 열려요. 그동안 <a href="#review">오답 노트</a>와 <a href="#calc">복리 계산기</a>로 복습해보세요.</p></div>`}
       <h2 style="margin-top:28px">용어 체계</h2>
       <p class="muted small">위로 갈수록 아래층 개념이 필요해요. 회색 용어는 다음 업데이트에서 열리고, 5층은 미리보기만 가능해요.</p>
       <div class="tower">${floors}</div>`;
@@ -769,7 +769,7 @@ const Views = {
           <div class="wn"><small>WEEK</small><b>${w.week}</b><span class="lbadge">${w.layer}층</span></div>
           <div>
             <h3>${w.title}${cur && cur.week === w.week ? ' <span class="state todo">이번 주</span>' : ''}</h3>
-            <ol>${w.core.map(([txt, id]) => `<li>${esc(txt)} ${TERM[id] ? `<a class="small" href="#/term/${id}">${TERM[id].name} →</a>` : ''}</li>`).join('')}</ol>
+            <ol>${w.core.map(([txt, id]) => `<li>${esc(txt)} ${TERM[id] ? `<a class="small" href="#term-${id}">${TERM[id].name} →</a>` : ''}</li>`).join('')}</ol>
             <div class="doit"><b>직접 해볼 것</b> · ${esc(w.doit)}</div>
             <label class="wcheck"><input type="checkbox" data-week="${w.week}" ${Progress.weekDone(w.week) ? 'checked' : ''}> 이번 주 완료</label>
           </div>
@@ -789,7 +789,7 @@ const Views = {
       const pre = t.prereq.length ? `<div class="prereq">먼저 알아야 할 개념: ${prereqChips(t.prereq)}</div>` : '';
       const preview = t.preview ? `<details class="preview"><summary>한 문단 미리보기</summary><p style="margin-top:8px">${rich(t.preview)}</p></details>` : '';
       return `<div class="card">
-        <a class="tcard" href="#/term/${t.id}"><h3>${t.name} <span class="muted small" style="font-weight:400">${t.en}</span> ${state}</h3><p style="margin:0" class="muted">${rich(t.oneLine)}</p></a>
+        <a class="tcard" href="#term-${t.id}"><h3>${t.name} <span class="muted small" style="font-weight:400">${t.en}</span> ${state}</h3><p style="margin:0" class="muted">${rich(t.oneLine)}</p></a>
         ${pre}${preview}</div>`;
     }).join('');
     return `
@@ -809,7 +809,7 @@ const Views = {
     if (!t) return Views.notFound();
     const l = LAYER[t.layer];
     const head = `
-      <div class="eyebrow"><a href="#/layer/${t.layer}">${t.layer}층 ${l.name}</a></div>
+      <div class="eyebrow"><a href="#layer-${t.layer}">${t.layer}층 ${l.name}</a></div>
       <h1>${t.name} <span class="muted" style="font-size:1rem;font-weight:400">${t.en}</span></h1>
       <p class="lead">${rich(t.oneLine)}</p>
       ${t.prereq.length ? `<div class="prereq" style="margin-bottom:16px">${t.layer > 1 ? '먼저 알아야 할 하위 개념' : '먼저 보면 좋은 개념'}: ${prereqChips(t.prereq)}</div>` : ''}`;
@@ -829,8 +829,8 @@ const Views = {
       <h2 style="margin-top:28px">③ 지금 할 것 / 나중에 할 것</h2>
       ${splitBox(t.later, t.onIncome)}
       <div class="pager">
-        ${prev ? `<a class="btn" href="#/term/${prev.id}">← ${prev.name}</a>` : '<span></span>'}
-        ${next ? `<a class="btn primary" href="#/term/${next.id}">${next.name} →</a>` : `<a class="btn primary" href="#/layer/${t.layer + 1}">${t.layer + 1}층 둘러보기 →</a>`}
+        ${prev ? `<a class="btn" href="#term-${prev.id}">← ${prev.name}</a>` : '<span></span>'}
+        ${next ? `<a class="btn primary" href="#term-${next.id}">${next.name} →</a>` : `<a class="btn primary" href="#layer-${t.layer + 1}">${t.layer + 1}층 둘러보기 →</a>`}
       </div>`;
   },
   termMounted(root, id) {
@@ -868,10 +868,10 @@ const Views = {
       <p class="lead">틀렸거나 "잘 모르겠어요"를 고른 문제만 모았어요. 다시 맞히면 목록에서 빠져요.</p>
       ${ids.length ? `
         <div class="card"><b>남은 오답 ${ids.length}개</b>
-          <div style="margin-top:8px">${Object.entries(byTerm).map(([tid, c]) => `<a class="chip" href="#/term/${tid}">${TERM[tid].name} <span class="badge">${c}</span></a>`).join('')}</div>
+          <div style="margin-top:8px">${Object.entries(byTerm).map(([tid, c]) => `<a class="chip" href="#term-${tid}">${TERM[tid].name} <span class="badge">${c}</span></a>`).join('')}</div>
         </div>
         <div id="rq"></div><div id="rdone"></div>`
-      : `<div class="locked">아직 오답이 없어요.<br><a href="#/">용어 퀴즈를 풀러 가기</a></div>`}`;
+      : `<div class="locked">아직 오답이 없어요.<br><a href="#home">용어 퀴즈를 풀러 가기</a></div>`}`;
   },
   reviewMounted(root) {
     const el = root.querySelector('#rq');
@@ -884,19 +884,21 @@ const Views = {
         const ok = Object.values(res).filter(Boolean).length;
         const left = QuizEngine.wrongIds().length;
         root.querySelector('#rdone').innerHTML = `<div class="card"><b>${qs.length}문제 중 ${ok}개 맞혔어요.</b> ${left ? `남은 오답 ${left}개.` : '오답을 모두 정리했어요!'}
-          <div style="margin-top:10px">${left ? '<a class="btn primary" href="#/review" onclick="App.route();return false">남은 오답 다시 풀기</a>' : '<a class="btn primary" href="#/">홈으로</a>'}</div></div>`;
+          <div style="margin-top:10px">${left ? '<a class="btn primary" href="#review" onclick="App.route();return false">남은 오답 다시 풀기</a>' : '<a class="btn primary" href="#home">홈으로</a>'}</div></div>`;
       }
     });
   },
 
-  notFound() { return `<h1>페이지를 찾을 수 없어요</h1><a href="#/">홈으로</a>`; }
+  notFound() { return `<h1>페이지를 찾을 수 없어요</h1><a href="#home">홈으로</a>`; }
 };
 
 /* ===================== 앱 셸 ===================== */
 const App = {
   path: [],
   route() {
-    const parts = (location.hash.replace(/^#\/?/, '') || '').split('/').filter(Boolean);
+    const h = location.hash.replace(/^#/, '');
+    const k = h.indexOf('-');
+    const parts = (!h || h === 'home') ? [] : k < 0 ? [h] : [h.slice(0, k), h.slice(k + 1)];
     App.path = parts;
     const [p, a] = parts;
     const main = document.getElementById('main');
@@ -926,30 +928,33 @@ const App = {
     const layers = DATA.LAYERS.map(l => {
       const s = layerStats(l.n);
       const sub = curLayer === l.n ? `<div class="sub">${termsOf(l.n).map(t =>
-        `<a class="${on(p === 'term' && a === t.id)}" href="#/term/${t.id}">${Progress.termDone(t.id) ? '✓' : t.ready ? '·' : '🔒'} ${t.name}</a>`).join('')}</div>` : '';
-      return `<a class="item ${on(curLayer === l.n)}" href="#/layer/${l.n}">
+        `<a class="${on(p === 'term' && a === t.id)}" href="#term-${t.id}">${Progress.termDone(t.id) ? '✓' : t.ready ? '·' : '🔒'} ${t.name}</a>`).join('')}</div>` : '';
+      return `<a class="item ${on(curLayer === l.n)}" href="#layer-${l.n}">
           <div class="row"><span><span class="lv">${l.n}</span>${l.name}</span><span class="cnt">${s.done}/${s.total}</span></div>
           <div class="bar"><i style="width:${s.done / s.total * 100}%"></i></div></a>${sub}`;
     }).join('');
     document.getElementById('side').innerHTML = `
-      <a class="brand" href="#/"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round"><path d="M12 22V10"/><path d="M12 14c-4 0-6-2-6-6 4 0 6 2 6 6z"/><path d="M12 10c0-4 2-6 6-6 0 4-2 6-6 6z"/></svg>경제나무</a>
+      <a class="brand" href="#home"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round"><path d="M12 22V10"/><path d="M12 14c-4 0-6-2-6-6 4 0 6 2 6 6z"/><path d="M12 10c0-4 2-6 6-6 0 4-2 6-6 6z"/></svg>경제나무</a>
       <nav class="nav">
-        <a class="item ${on(!p)}" href="#/">홈 · 용어 체계</a>
-        <a class="item ${on(p === 'roadmap')}" href="#/roadmap"><div class="row"><span>12주 로드맵</span><span class="cnt">${weeks}/12</span></div></a>
+        <a class="item ${on(!p)}" href="#home">홈 · 용어 체계</a>
+        <a class="item ${on(p === 'roadmap')}" href="#roadmap"><div class="row"><span>12주 로드맵</span><span class="cnt">${weeks}/12</span></div></a>
         <div class="nav-sec">용어 5층</div>
         ${layers}
         <div class="nav-sec">도구</div>
-        <a class="item ${on(p === 'calc')}" href="#/calc">복리 계산기</a>
-        <a class="item ${on(p === 'review')}" href="#/review"><div class="row"><span>오답 노트</span><span class="badge ${wrong ? '' : 'zero'}">${wrong}</span></div></a>
+        <a class="item ${on(p === 'calc')}" href="#calc">복리 계산기</a>
+        <a class="item ${on(p === 'review')}" href="#review"><div class="row"><span>오답 노트</span><span class="badge ${wrong ? '' : 'zero'}">${wrong}</span></div></a>
       </nav>
       <div class="overall">전체 진도<br><b>${doneAll}</b> / ${DATA.TERMS.length} 용어 <span class="muted">(지금 열린 ${ready.length}개)</span>
         <div class="bar"><i style="width:${doneAll / DATA.TERMS.length * 100}%"></i></div>
-        <div style="margin-top:10px"><button class="linkbtn" id="resetBtn">진도·오답 초기화</button></div>
+        <div style="margin-top:10px" id="resetBox"><button class="linkbtn" id="resetBtn">진도·오답 초기화</button></div>
       </div>`;
     const tw = document.getElementById('topWrong');
     tw.textContent = wrong; tw.className = 'badge' + (wrong ? '' : ' zero');
     document.getElementById('resetBtn').onclick = () => {
-      if (confirm('진도와 오답 기록을 모두 지울까요?')) { Progress.reset(); QuizEngine.reset(); App.route(); }
+      const box = document.getElementById('resetBox');
+      box.innerHTML = '<div class="small">진도와 오답 기록을 모두 지울까요?</div><button class="linkbtn" id="resetYes" style="color:var(--bad)">모두 지우기</button> · <button class="linkbtn" id="resetNo">취소</button>';
+      document.getElementById('resetYes').onclick = () => { Progress.reset(); QuizEngine.reset(); App.route(); };
+      document.getElementById('resetNo').onclick = () => App.refreshSide();
     };
   },
   openMenu() { document.getElementById('side').classList.add('open'); document.getElementById('scrim').classList.add('open'); },
