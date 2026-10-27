@@ -8,13 +8,13 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
 <!-- 로그인·동기화(선택): Supabase. SUPABASE_URL/KEY가 비어 있으면 이 브라우저에만 저장한다. -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/dist/umd/supabase.js"></script>
 <script>
 /* Supabase 대시보드 → Project Settings → API 에서 복사해 넣는다.
-   anon(public) 키는 브라우저에 노출돼도 되는 키다. 데이터 보호는 supabase/schema.sql 의 RLS 정책이 맡는다.
+   anon(public) 또는 publishable(sb_publishable_…) 키는 브라우저에 노출돼도 되는 키다. 데이터 보호는 supabase/schema.sql 의 RLS 정책이 맡는다.
    service_role 키는 절대 넣지 말 것. */
-const SUPABASE_URL = '';
-const SUPABASE_ANON_KEY = '';
+const SUPABASE_URL = 'https://vvqisjclgnolwohmapbg.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_7VKqTnD8jfyTtgG6yKO9UQ_KK3xY4vB';
 </script>
 <script>
 /* =====================================================================
