@@ -7,6 +7,15 @@
 <meta name="description" content="경제 지식이 없어도 시작할 수 있는 5층 용어 체계, 12주 로드맵, 복리 계산기, 오답 퀴즈">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<!-- 로그인·동기화(선택): Supabase. SUPABASE_URL/KEY가 비어 있으면 이 브라우저에만 저장한다. -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script>
+/* Supabase 대시보드 → Project Settings → API 에서 복사해 넣는다.
+   anon(public) 키는 브라우저에 노출돼도 되는 키다. 데이터 보호는 supabase/schema.sql 의 RLS 정책이 맡는다.
+   service_role 키는 절대 넣지 말 것. */
+const SUPABASE_URL = '';
+const SUPABASE_ANON_KEY = '';
+</script>
 <script>
 /* =====================================================================
    DATA — 사이트의 모든 콘텐츠는 여기에 있다.
@@ -324,6 +333,11 @@ p { margin: 0 0 .9em; }
 .badge.zero { background: var(--surface-2); color: var(--muted); }
 .overall { margin: 22px 8px 0; padding: 12px; border-radius: 10px; background: var(--surface-2); font-size: .85rem; }
 .overall b { font-size: 1.2rem; }
+.acct { margin-top: 10px; }
+.acct-form { display: grid; gap: 6px; }
+.acct-form input { width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font: inherit; font-size: .9rem; }
+.acct-form .btn { padding: 7px 12px; font-size: .9rem; }
+.err { color: var(--bad); }
 .linkbtn { background: none; border: 0; padding: 0; color: var(--muted); text-decoration: underline; font-size: .8rem; }
 .scrim { display: none; }
 
@@ -461,7 +475,7 @@ details > summary { cursor: pointer; color: var(--accent); font-weight: 500; }
   <a class="badge zero" id="topWrong" href="#review" title="오답 노트">0</a>
 </div>
 <div class="app">
-  <aside class="side" id="side"></aside>
+  <aside class="side"><div id="side"></div><div class="overall acct" id="acct"></div></aside>
   <div class="scrim" id="scrim"></div>
   <main class="main" id="main"></main>
 </div>
@@ -478,13 +492,15 @@ const store = {
 const Progress = (() => {
   const KEY = 'et.progress.v1';
   let s = store.get(KEY, { terms: {}, weeks: {} });
-  const save = () => { store.set(KEY, s); App.refreshSide(); };
+  const save = () => { store.set(KEY, s); App.refreshSide(); Sync.changed(); };
   return {
     termDone: id => !!s.terms[id],
     setTerm(id) { if (!s.terms[id]) { s.terms[id] = Date.now(); save(); } },
     weekDone: n => !!s.weeks[n],
     setWeek(n, v) { if (v) s.weeks[n] = Date.now(); else delete s.weeks[n]; save(); },
-    reset() { s = { terms: {}, weeks: {} }; store.del(KEY); }
+    reset() { s = { terms: {}, weeks: {} }; store.del(KEY); Sync.changed(); },
+    dump: () => JSON.parse(JSON.stringify(s)),
+    load(v) { s = { terms: Object.assign({}, v && v.terms), weeks: Object.assign({}, v && v.weeks) }; store.set(KEY, s); }
   };
 })();
 
@@ -504,7 +520,7 @@ const QuizEngine = (() => {
   const bank = {};
   const listeners = [];
   let st = store.get(KEY, { wrong: {}, answered: {} });
-  const save = () => { store.set(KEY, st); listeners.forEach(f => f()); };
+  const save = () => { store.set(KEY, st); listeners.forEach(f => f()); Sync.changed(); };
   const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 
   function record(q, ok) {
@@ -564,8 +580,114 @@ const QuizEngine = (() => {
     isAnswered: id => !!st.answered[id],
     wrongIds: filter => Object.keys(st.wrong).filter(id => bank[id] && (!filter || filter(bank[id]))),
     onChange: fn => listeners.push(fn),
-    reset() { st = { wrong: {}, answered: {} }; store.del(KEY); save(); }
+    reset() { st = { wrong: {}, answered: {} }; store.del(KEY); save(); },
+    dump: () => JSON.parse(JSON.stringify(st)),
+    load(v) { st = { wrong: Object.assign({}, v && v.wrong), answered: Object.assign({}, v && v.answered) }; store.set(KEY, st); listeners.forEach(f => f()); }
   };
+})();
+
+/* ===================== 로그인·동기화 (Supabase) =====================
+   - 이메일로 받은 로그인 링크를 누르면 로그인된다(비밀번호 없음).
+   - 로그인 시: 서버 기록과 이 브라우저 기록을 합친 뒤 서버에 저장.
+   - 이후 퀴즈를 풀거나 진도가 바뀔 때마다 2초 뒤 서버에 저장.
+   - 테이블: learning_progress (user_id, data jsonb, updated_at)
+   ================================================================= */
+const Sync = (() => {
+  const TABLE = 'learning_progress';
+  let sb = null, user = null, timer = null, busy = false;
+  let state = 'off', msg = '', lastAt = null, pulled = false;
+
+  // 두 기록 합치기: 용어·주차 완료는 합집합, 문제별 풀이는 더 최근 것을 따른다.
+  function merge(a, b) {
+    a = a || {}; b = b || {};
+    const pa = a.progress || {}, pb = b.progress || {}, qa = a.quiz || {}, qb = b.quiz || {};
+    const union = (x, y) => { const o = Object.assign({}, y, x); for (const k in y) if (x && x[k]) o[k] = Math.min(x[k], y[k]); return o; };
+    const ansA = qa.answered || {}, ansB = qb.answered || {};
+    const answered = {}, wrong = {};
+    new Set([...Object.keys(ansA), ...Object.keys(ansB)]).forEach(id => {
+      const ea = ansA[id], eb = ansB[id];
+      const latest = !ea ? eb : !eb ? ea : (ea.at >= eb.at ? ea : eb);
+      answered[id] = latest;
+      if (!latest.ok) wrong[id] = Math.max((qa.wrong || {})[id] || 0, (qb.wrong || {})[id] || 0, 1);
+    });
+    return { progress: { terms: union(pa.terms || {}, pb.terms || {}), weeks: union(pa.weeks || {}, pb.weeks || {}) }, quiz: { answered, wrong } };
+  }
+  const local = () => ({ progress: Progress.dump(), quiz: QuizEngine.dump() });
+  const set = (st, m) => { state = st; msg = m || ''; render(); };
+
+  async function pull() {
+    set('busy', '기록을 불러오는 중…');
+    const { data, error } = await sb.from(TABLE).select('data').eq('user_id', user.id).maybeSingle();
+    if (error) return set('error', '불러오기 실패: ' + error.message);
+    const m = merge(local(), data && data.data);
+    Progress.load(m.progress); QuizEngine.load(m.quiz);
+    pulled = true;
+    await push();
+    App.route();
+  }
+  async function push() {
+    if (!user || !pulled) return;
+    if (busy) { changed(); return; }
+    busy = true;
+    const { error } = await sb.from(TABLE).upsert({ user_id: user.id, data: local(), updated_at: new Date().toISOString() });
+    busy = false;
+    if (error) return set('error', '저장 실패: ' + error.message + ' (잠시 뒤 다시 시도해요)');
+    lastAt = new Date(); set('in');
+  }
+  function changed() {
+    if (!user || !pulled) return;
+    clearTimeout(timer); timer = setTimeout(push, 2000);
+  }
+
+  function render() {
+    const el = document.getElementById('acct');
+    if (!el) return;
+    if (state === 'off') { el.innerHTML = `<div class="small muted">기록은 이 브라우저에만 저장돼요.</div>`; return; }
+    if (!user) {
+      el.innerHTML = `
+        <div class="small" style="margin-bottom:6px">로그인하면 퀴즈 기록이 다른 기기에서도 이어져요.</div>
+        <form id="loginForm" class="acct-form">
+          <input id="loginEmail" type="email" required placeholder="이메일 주소" autocomplete="email" value="${esc(el.dataset.email || '')}">
+          <button class="btn primary" type="submit">로그인 링크 받기</button>
+        </form>
+        ${msg ? `<div class="small ${state === 'error' ? 'err' : 'muted'}" style="margin-top:6px">${esc(msg)}</div>` : ''}`;
+      const form = document.getElementById('loginForm');
+      form.onsubmit = async e => {
+        e.preventDefault();
+        const email = document.getElementById('loginEmail').value.trim();
+        el.dataset.email = email;
+        set('busy', '보내는 중…');
+        const { error } = await sb.auth.signInWithOtp({ email, options: { emailRedirectTo: location.origin + location.pathname } });
+        if (error) set('error', '보내기 실패: ' + error.message);
+        else set('sent', `${email} 로 로그인 링크를 보냈어요. 이 브라우저에서 메일의 링크를 눌러주세요.`);
+      };
+      return;
+    }
+    const t = lastAt ? lastAt.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }) : '';
+    el.innerHTML = `
+      <div class="small"><b>${esc(user.email || '')}</b></div>
+      <div class="small ${state === 'error' ? 'err' : 'muted'}">${state === 'error' ? esc(msg) : state === 'busy' ? esc(msg) : t ? `✓ ${t} 서버에 저장됨` : '로그인됨'}</div>
+      <button class="linkbtn" id="logoutBtn">로그아웃</button>`;
+    document.getElementById('logoutBtn').onclick = () => sb.auth.signOut();
+  }
+
+  async function init() {
+    if (!SUPABASE_URL || !SUPABASE_ANON_KEY || !window.supabase) { set('off'); return; }
+    try {
+      sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { flowType: 'pkce', persistSession: true, detectSessionInUrl: true } });
+    } catch (e) { set('off'); return; }
+    sb.auth.onAuthStateChange((ev, session) => {
+      const u = session ? session.user : null;
+      if ((u && u.id) === (user && user.id)) return;
+      user = u; pulled = false;
+      // 로그인 링크로 돌아오면 주소에 ?code= 가 남으므로 지운다
+      if (location.search.includes('code=')) history.replaceState(null, '', location.pathname + location.hash);
+      if (user) setTimeout(pull, 0); else set('out');
+    });
+    const { data } = await sb.auth.getSession();
+    if (!data.session) set('out');
+  }
+  return { init, changed, render, merge };
 })();
 
 /* ===================== 유틸 ===================== */
@@ -957,8 +1079,8 @@ const App = {
       document.getElementById('resetNo').onclick = () => App.refreshSide();
     };
   },
-  openMenu() { document.getElementById('side').classList.add('open'); document.getElementById('scrim').classList.add('open'); },
-  closeMenu() { document.getElementById('side').classList.remove('open'); document.getElementById('scrim').classList.remove('open'); }
+  openMenu() { document.querySelector('.side').classList.add('open'); document.getElementById('scrim').classList.add('open'); },
+  closeMenu() { document.querySelector('.side').classList.remove('open'); document.getElementById('scrim').classList.remove('open'); }
 };
 QuizEngine.onChange(() => App.refreshSide());
 document.getElementById('menuBtn').onclick = App.openMenu;
@@ -970,6 +1092,7 @@ window.addEventListener('resize', () => { clearTimeout(rzT); rzT = setTimeout(()
   document.querySelectorAll('.chart').forEach(c => c._redraw && c._redraw());
 }, 150); });
 App.route();
+Sync.init();
 </script>
 </body>
 </html>

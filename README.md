@@ -15,3 +15,18 @@
 - `DATA.TERMS`에 용어 추가. `ready: true` + `quiz`, `body`, `later`, `onIncome`을 채우면 학습 페이지가 열림.
 - 본문 표기: `[[용어|한 줄 풀이]]`(그 자리에서 풀어쓰기), `@@termId@@`(용어 링크), `{{calc}}`(계산기 삽입).
 - 퀴즈 엔진 `QuizEngine`은 `register / mount / wrongIds` API로 다른 코너에서도 재사용 가능.
+
+## 로그인·학습 기록 동기화 (Supabase, 선택)
+키를 넣지 않으면 기록은 브라우저에만 저장됩니다. 키를 넣으면 이메일 로그인 링크로 로그인하고, 진도·퀴즈 기록이 서버에 저장돼 다른 기기에서도 이어집니다.
+
+1. [supabase.com](https://supabase.com)에서 프로젝트를 만든다.
+2. **SQL Editor**에 `supabase/schema.sql`을 붙여넣고 실행한다 (테이블 + 본인 기록만 접근 가능한 RLS 정책).
+3. **Project Settings → API**에서 `Project URL`과 `anon public` 키를 복사해 `index.html` 상단의 `SUPABASE_URL`, `SUPABASE_ANON_KEY`에 넣는다. (`service_role` 키는 절대 넣지 말 것)
+4. 사이트를 호스팅한다 (Vercel, GitHub Pages 등). claude.ai 아티팩트 링크에서는 외부 서버 접속이 막혀 있어 로그인이 동작하지 않는다.
+5. **Authentication → URL Configuration**에서 `Site URL`과 `Redirect URLs`에 호스팅 주소(예: `https://내사이트.vercel.app/`)를 넣는다.
+
+동작 방식
+- 로그인할 때 서버 기록과 이 브라우저 기록을 합친다 (완료한 용어·주차는 합집합, 문제별 풀이는 더 최근 결과 기준).
+- 이후 퀴즈를 풀 때마다 2초 뒤 자동 저장.
+- 로그인 링크는 요청한 그 브라우저에서 열어야 한다 (PKCE 방식).
+- Supabase 기본 메일 발송은 시간당 횟수 제한이 있다. 사용자가 늘면 Authentication → SMTP 설정에서 자체 메일 서버를 연결한다.
